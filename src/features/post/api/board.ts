@@ -1,4 +1,4 @@
-const BASE_URL = "https://front-mission.bigs.or.kr";
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
 
 import type { BoardCategory } from "@entities/post/model/category";
 export type { BoardCategory };

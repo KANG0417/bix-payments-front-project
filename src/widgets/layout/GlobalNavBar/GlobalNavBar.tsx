@@ -48,7 +48,7 @@ export function GlobalNavBar() {
     >
       <nav
         style={{
-          maxWidth: 900,
+          maxWidth: "60%",
           margin: "0 auto",
           height: 68,
           display: "flex",
@@ -69,7 +69,7 @@ export function GlobalNavBar() {
         >
           <span
             style={{
-              width: 36,
+              width: 80,
               height: 36,
               borderRadius: 12,
               background: "linear-gradient(135deg, #f48fb1, #ce93d8)",
@@ -83,17 +83,7 @@ export function GlobalNavBar() {
               transition: "transform 0.2s",
             }}
           >
-            B
-          </span>
-          <span
-            style={{
-              fontSize: 17,
-              fontWeight: 800,
-              color: "#7b2d52",
-              letterSpacing: "-0.3px",
-            }}
-          >
-            내 블로그
+            CO.KR
           </span>
         </Link>
 

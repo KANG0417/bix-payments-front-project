@@ -1,7 +1,7 @@
-export type BoardCategory = "NOTICE" | "FREE" | "QNA" | "ETC";
+export type BoardCategory = "ALL" | "NOTICE" | "FREE" | "QNA" | "ETC";
 
 export const CATEGORIES: { label: string; value: BoardCategory }[] = [
-  { label: "전체", value: "FREE" },
+  { label: "전체", value: "ALL" },
   { label: "공지", value: "NOTICE" },
   { label: "자유", value: "FREE" },
   { label: "질문", value: "QNA" },

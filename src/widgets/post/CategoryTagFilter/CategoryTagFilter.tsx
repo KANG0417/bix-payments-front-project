@@ -13,7 +13,7 @@ export function CategoryTagFilter({
   onCategoryChange,
 }: CategoryTagFilterProps) {
   return (
-    <section className="flex flex-col items-center gap-5">
+    <section className="flex flex-col items-start gap-5">
       <nav aria-label="카테고리 필터">
         <h2 className="mb-3 self-start text-base font-bold text-slate-400">
           🌸 카테고리
@@ -44,11 +44,11 @@ export function CategoryTagFilter({
                 onClick={() => onCategoryChange(cat.value)}
                 aria-pressed={selectedCategory === cat.value}
                 className={`cursor-pointer rounded-full px-5 py-2.5 text-base font-semibold transition-all duration-200
-                  ${
-                    selectedCategory === cat.value
-                      ? "bg-gradient-to-r from-pink-300 to-purple-300 text-white shadow-md shadow-pink-100 -translate-y-0.5"
-                      : "bg-white/70 text-slate-500 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:-translate-y-0.5"
-                  }`}
+          ${
+            selectedCategory === cat.value
+              ? "bg-gradient-to-r from-pink-300 to-purple-300 text-white shadow-md shadow-pink-100 -translate-y-0.5"
+              : "bg-white/70 text-slate-500 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:-translate-y-0.5"
+          }`}
               >
                 {cat.label}
               </button>

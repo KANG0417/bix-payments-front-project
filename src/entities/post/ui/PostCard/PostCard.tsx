@@ -1,6 +1,6 @@
 "use client";
 
-import type { Post } from "../../model/types";
+import { Post } from "../../model/types";
 
 interface PostCardProps {
   post: Post;

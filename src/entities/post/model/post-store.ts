@@ -1,9 +1,9 @@
 "use client";
 
 import { create } from "zustand";
-import type { Post } from "./types";
 import { getStorageItem, setStorageItem } from "@shared/lib/storage";
 import { STORAGE_KEYS } from "@shared/config/storage-keys";
+import { Post } from "./types";
 
 const POSTS_PER_PAGE = 9;
 
@@ -21,17 +21,25 @@ interface PostState {
   posts: Post[];
   isHydrated: boolean;
   getPostsByAuthor: (authorId: string) => Post[];
-  getFilteredPosts: (authorId: string, category: string, tag: string | null) => Post[];
+  getFilteredPosts: (
+    authorId: string,
+    category: string,
+    tag: string | null,
+  ) => Post[];
   addPost: (post: Omit<Post, "id" | "createdAt" | "updatedAt">) => Post;
   getPostsPage: (
     authorId: string,
     category: string,
     tag: string | null,
-    page: number
+    page: number,
   ) => { items: Post[]; hasMore: boolean };
   getAllTags: (authorId: string) => string[];
   getCountByCategory: (authorId: string, category: string) => number;
-  getFilteredCount: (authorId: string, category: string, tag: string | null) => number;
+  getFilteredCount: (
+    authorId: string,
+    category: string,
+    tag: string | null,
+  ) => number;
   getTotalCount: (authorId: string) => number;
   hydrate: () => void;
 }
@@ -45,8 +53,8 @@ export const usePostStore = create<PostState>((set, get) => ({
   },
 
   getPostsByAuthor: (authorId) => {
-    return get().posts
-      .filter((p) => p.authorId === authorId)
+    return get()
+      .posts.filter((p) => p.authorId === authorId)
       .sort((a, b) => b.createdAt - a.createdAt);
   },
 

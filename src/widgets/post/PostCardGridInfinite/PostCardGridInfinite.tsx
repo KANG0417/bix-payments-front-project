@@ -7,7 +7,7 @@ import type { BoardCategory } from "@entities/post/model/category";
 import { useBoards } from "@/src/features/auth/api/useBoard";
 
 interface PostCardGridInfiniteProps {
-  selectedCategory: BoardCategory | "ALL";
+  selectedCategory: BoardCategory; // "ALL"이 포함된 타입
 }
 
 const PAGE_SIZE = 9;
@@ -20,7 +20,18 @@ export function PostCardGridInfinite({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<number | null>(null);
 
-  // 카테고리 바뀌면 페이지 초기화
+  // ✨ 핵심 수정: API 파라미터에서 "ALL"은 제외(undefined) 처리
+  // 이렇게 하면 서버에는 category 파라미터가 가지 않아 전체 글을 불러옵니다.
+  const queryCategory =
+    selectedCategory === "ALL" ? undefined : selectedCategory;
+
+  const { data, isLoading, isError } = useBoards({
+    category: queryCategory,
+    page,
+    size: PAGE_SIZE,
+  });
+
+  // 카테고리 변경 시 페이지 초기화
   useEffect(() => {
     setPage(0);
   }, [selectedCategory]);
@@ -30,12 +41,6 @@ export function PostCardGridInfinite({
       if (timerRef.current) window.clearTimeout(timerRef.current);
     };
   }, []);
-
-  const { data, isLoading, isError } = useBoards({
-    category: selectedCategory,
-    page,
-    size: PAGE_SIZE,
-  });
 
   const totalPages = data?.totalPages ?? 1;
   const hasMore = page < totalPages - 1;
@@ -63,7 +68,7 @@ export function PostCardGridInfinite({
     return () => observer.disconnect();
   }, [hasMore, isFetchingMore]);
 
-  if (isLoading) return <LoadingBar />;
+  if (isLoading && page === 0) return <LoadingBar />;
 
   if (isError)
     return (

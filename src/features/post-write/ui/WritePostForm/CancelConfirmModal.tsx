@@ -23,7 +23,7 @@ export function CancelConfirmModal({
           <h2 className="text-lg font-bold text-slate-700">
             작성을 취소할까요?
           </h2>
-          <p className="mt-2 text-sm text-slate-400">
+          <p className="mt-2 text-sm text-[#E72566] font-bold">
             지금까지 입력한 내용이 모두 사라져요.
           </p>
         </header>
@@ -38,7 +38,7 @@ export function CancelConfirmModal({
           <button
             type="button"
             onClick={onConfirm}
-            className="cursor-pointer flex-1 rounded-full bg-pink-100 px-4 py-2.5 text-sm font-semibold text-pink-600 hover:bg-pink-200 transition-all"
+            className="cursor-pointer flex-1 rounded-full bg-amber-100 px-4 py-2.5 text-sm font-semibold font-bold bg-amber-100 text-amber-600 hover:bg-amber-200 transition-all"
           >
             확인
           </button>
