@@ -10,11 +10,6 @@ interface CategoryTagFilterProps {
   onTagChange: (tag: string | null) => void;
 }
 
-const activeClass =
-  "bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900";
-const inactiveClass =
-  "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600";
-
 export function CategoryTagFilter({
   selectedCategory,
   selectedTag,
@@ -23,53 +18,78 @@ export function CategoryTagFilter({
   onTagChange,
 }: CategoryTagFilterProps) {
   return (
-    <div className="space-y-4">
-      <div>
-        <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-400">
-          카테고리
-        </p>
-        <div className="flex flex-wrap gap-2">
+    <section className="flex flex-col items-center gap-5">
+      {/* 카테고리 */}
+      <nav aria-label="카테고리 필터">
+        <h2 className="mb-3 self-start text-base font-bold text-slate-400">
+          🌸 카테고리
+        </h2>
+        <ul className="flex flex-wrap justify-center gap-2.5 list-none p-0 m-0">
           {DEFAULT_CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => {
-                onCategoryChange(cat);
-                onTagChange(null);
-              }}
-              className={`rounded-full px-4 py-2 text-sm font-medium transition ${selectedCategory === cat ? activeClass : inactiveClass}`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      </div>
-      {tags.length > 0 ? (
-        <div>
-          <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-400">
-            태그
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => onTagChange(null)}
-              className={`rounded-full px-4 py-2 text-sm font-medium transition ${selectedTag === null ? activeClass : inactiveClass}`}
-            >
-              전체
-            </button>
-            {tags.map((tag) => (
+            <li key={cat}>
               <button
-                key={tag}
                 type="button"
-                onClick={() => onTagChange(tag)}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition ${selectedTag === tag ? activeClass : inactiveClass}`}
+                onClick={() => {
+                  onCategoryChange(cat);
+                  onTagChange(null);
+                }}
+                aria-pressed={selectedCategory === cat}
+                className={`cursor-pointer rounded-full px-5 py-2.5 text-base font-semibold transition-all duration-200
+                  ${
+                    selectedCategory === cat
+                      ? "bg-gradient-to-r from-pink-300 to-purple-300 text-white shadow-md shadow-pink-100 -translate-y-0.5"
+                      : "bg-white/70 text-slate-500 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:-translate-y-0.5"
+                  }`}
               >
-                {tag}
+                {cat}
               </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
+      {/* 태그 */}
+      {tags.length > 0 && (
+        <nav aria-label="태그 필터">
+          <h2 className="mb-3 self-start text-base font-bold text-slate-400">
+            🏷️ 태그
+          </h2>
+          <ul className="flex flex-wrap justify-center gap-2.5 list-none p-0 m-0">
+            <li>
+              <button
+                type="button"
+                onClick={() => onTagChange(null)}
+                aria-pressed={selectedTag === null}
+                className={`cursor-pointer rounded-full px-5 py-2.5 text-base font-semibold transition-all duration-200
+                  ${
+                    selectedTag === null
+                      ? "bg-gradient-to-r from-pink-300 to-purple-300 text-white shadow-md shadow-pink-100 -translate-y-0.5"
+                      : "bg-white/70 text-slate-500 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:-translate-y-0.5"
+                  }`}
+              >
+                전체
+              </button>
+            </li>
+            {tags.map((tag) => (
+              <li key={tag}>
+                <button
+                  type="button"
+                  onClick={() => onTagChange(tag)}
+                  aria-pressed={selectedTag === tag}
+                  className={`cursor-pointer rounded-full px-5 py-2.5 text-base font-semibold transition-all duration-200
+                    ${
+                      selectedTag === tag
+                        ? "bg-gradient-to-r from-pink-300 to-purple-300 text-white shadow-md shadow-pink-100 -translate-y-0.5"
+                        : "bg-white/70 text-slate-500 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:-translate-y-0.5"
+                    }`}
+                >
+                  {tag}
+                </button>
+              </li>
             ))}
-          </div>
-        </div>
-      ) : null}
-    </div>
+          </ul>
+        </nav>
+      )}
+    </section>
   );
 }

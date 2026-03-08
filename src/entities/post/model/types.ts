@@ -14,17 +14,11 @@ export const DEFAULT_CATEGORIES = [
   "일상",
   "기술",
   "여행",
-  "리뷰",
+  "영화",
+  "맛집",
+  "취미",
+  "쇼핑",
   "기타",
-   "기타",
-    "기타",
-     "기타",
-      "기타",
-       "기타",
-        "기타",
-         "기타",
-          "기타",
-           "기타",
 ] as const;
 
 export type Category = (typeof DEFAULT_CATEGORIES)[number];

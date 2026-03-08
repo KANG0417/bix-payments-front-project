@@ -19,10 +19,12 @@ export function GlobalNavBar() {
     router.replace(ROUTES.LOGIN);
   };
 
-  // 외부 클릭 시 드롭다운 닫기
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
         setDropdownOpen(false);
       }
     };
@@ -33,60 +35,177 @@ export function GlobalNavBar() {
   const initials = user?.displayName ? user.displayName.slice(0, 2) : "?";
 
   return (
-    <header className="sticky top-0 z-50 border-b border-zinc-100 bg-white/80 backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-950/80">
-      <nav className="mx-auto flex h-20 max-w-5xl items-center justify-between px-6">
+    <header
+      style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 50,
+        background: "rgba(255,245,250,0.85)",
+        backdropFilter: "blur(20px)",
+        borderBottom: "1.5px solid rgba(255,198,218,0.5)",
+        boxShadow: "0 2px 16px rgba(244,143,177,0.08)",
+      }}
+    >
+      <nav
+        style={{
+          maxWidth: 900,
+          margin: "0 auto",
+          height: 68,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 24px",
+        }}
+      >
         {/* 로고 */}
         <Link
           href={ROUTES.DASHBOARD}
-          className="group flex cursor-pointer items-center gap-3"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            textDecoration: "none",
+          }}
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900 text-sm font-bold text-white transition-transform group-hover:scale-110 dark:bg-white dark:text-zinc-900">
+          <span
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 12,
+              background: "linear-gradient(135deg, #f48fb1, #ce93d8)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 15,
+              fontWeight: 900,
+              color: "white",
+              boxShadow: "0 4px 12px rgba(244,143,177,0.4)",
+              transition: "transform 0.2s",
+            }}
+          >
             B
           </span>
-          <span className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+          <span
+            style={{
+              fontSize: 17,
+              fontWeight: 800,
+              color: "#7b2d52",
+              letterSpacing: "-0.3px",
+            }}
+          >
             내 블로그
           </span>
         </Link>
 
         {/* 우측 액션 */}
         {user && (
-          <div className="flex items-center gap-4">
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {/* 글쓰기 버튼 */}
             <Link
               href={ROUTES.POST_WRITE}
-              className="flex cursor-pointer items-center gap-2 rounded-full bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-zinc-700 active:scale-95 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "8px 18px",
+                borderRadius: 999,
+                background: "linear-gradient(135deg, #f48fb1, #ce93d8)",
+                color: "white",
+                fontSize: 14,
+                fontWeight: 700,
+                textDecoration: "none",
+                boxShadow: "0 4px 14px rgba(244,143,177,0.4)",
+                transition: "filter 0.2s, transform 0.15s",
+              }}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M12 5v14M5 12h14" />
               </svg>
               글쓰기
             </Link>
 
             {/* 구분선 */}
-            <div className="h-5 w-px bg-zinc-200 dark:bg-zinc-700" />
+            <div
+              style={{
+                width: 1,
+                height: 20,
+                background: "rgba(244,143,177,0.3)",
+              }}
+            />
 
             {/* 프로필 드롭다운 */}
-            <div className="relative" ref={dropdownRef}>
+            <div style={{ position: "relative" }} ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen((prev) => !prev)}
-                className="flex cursor-pointer items-center gap-2.5 rounded-full p-1 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "4px 10px 4px 4px",
+                  borderRadius: 999,
+                  border: "1.5px solid rgba(244,143,177,0.3)",
+                  background: dropdownOpen
+                    ? "rgba(244,143,177,0.1)"
+                    : "transparent",
+                  cursor: "pointer",
+                  transition: "background 0.2s",
+                }}
               >
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 text-sm font-bold text-white shadow-sm">
+                {/* 아바타 */}
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: "50%",
+                    background: "linear-gradient(135deg, #f48fb1, #ce93d8)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 13,
+                    fontWeight: 800,
+                    color: "white",
+                    boxShadow: "0 2px 8px rgba(244,143,177,0.4)",
+                  }}
+                >
                   {initials}
                 </div>
-                <span className="hidden text-sm font-semibold text-zinc-700 dark:text-zinc-300 sm:block">
+                {/* 이름 */}
+                <span
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: "#7b2d52",
+                    display: "none",
+                  }}
+                  className="sm-show"
+                >
                   {user.displayName}
                 </span>
                 {/* 화살표 */}
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className={`hidden h-4 w-4 text-zinc-400 transition-transform sm:block ${dropdownOpen ? "rotate-180" : ""}`}
+                  width="14"
+                  height="14"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="currentColor"
+                  stroke="#c9a0b0"
                   strokeWidth="2.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  style={{
+                    transform: dropdownOpen ? "rotate(180deg)" : "rotate(0deg)",
+                    transition: "transform 0.2s",
+                  }}
                 >
                   <path d="M6 9l6 6 6-6" />
                 </svg>
@@ -94,18 +213,87 @@ export function GlobalNavBar() {
 
               {/* 드롭다운 메뉴 */}
               {dropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    marginTop: 8,
+                    width: 200,
+                    borderRadius: 20,
+                    background: "rgba(255,255,255,0.95)",
+                    backdropFilter: "blur(20px)",
+                    border: "1.5px solid rgba(255,198,218,0.6)",
+                    boxShadow:
+                      "0 12px 40px rgba(244,143,177,0.2), 0 4px 16px rgba(0,0,0,0.06)",
+                    overflow: "hidden",
+                  }}
+                >
                   {/* 유저 정보 */}
-                  <div className="border-b border-zinc-100 px-4 py-3 dark:border-zinc-700">
-                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{user.displayName}</p>
-                    <p className="mt-0.5 truncate text-xs text-zinc-400">{user.email}</p>
+                  <div
+                    style={{
+                      padding: "14px 16px",
+                      borderBottom: "1px solid rgba(255,198,218,0.4)",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: "#7b2d52",
+                        margin: 0,
+                      }}
+                    >
+                      {user.displayName}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: "#c084a0",
+                        margin: "3px 0 0",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {user.email}
+                    </p>
                   </div>
                   {/* 로그아웃 */}
                   <button
                     onClick={handleLogout}
-                    className="flex w-full cursor-pointer items-center gap-2 px-4 py-3 text-sm font-medium text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "12px 16px",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: "#e57373",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      transition: "background 0.15s",
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background =
+                        "rgba(244,67,54,0.06)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = "none")
+                    }
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
                       <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
                     </svg>
                     로그아웃
