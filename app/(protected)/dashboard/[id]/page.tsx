@@ -1,23 +1,413 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { categoryToLabel } from "@entities/post/model/category";
+import { useAuthStore } from "@entities/user/model/auth-store";
+import { ROUTES } from "@shared/config/routes";
+import { deleteBoard, getAdjacentBoards, getBoardDetail } from "@features/post/api/board";
+import { getMyIdentityCandidates, isMinePost } from "@features/post/model/ownership";
+
+interface AttachmentItem {
+  name: string;
+  url: string;
+  size?: number;
+}
+
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_API_BASE_URL || "https://front-mission.bigs.or.kr"
+).replace(/\/$/, "");
+
+function normalizeAccessToken(token?: string | null) {
+  if (!token) return null;
+  return token.replace(/^Bearer\s+/i, "").trim();
+}
+
+function resolveApiUrl(rawUrl: string) {
+  const url = String(rawUrl ?? "").trim();
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  if (url.startsWith("/")) return `${API_BASE_URL}${url}`;
+  return `${API_BASE_URL}/${url}`;
+}
+
+function guessFileNameFromUrl(url: string) {
+  try {
+    const pathname = new URL(url, API_BASE_URL).pathname;
+    const last = pathname.split("/").pop();
+    return decodeURIComponent(last || "첨부파일");
+  } catch {
+    return "첨부파일";
+  }
+}
+
+function toAttachment(item: unknown): AttachmentItem | null {
+  if (typeof item === "string") {
+    const url = resolveApiUrl(item.trim());
+    if (!url) return null;
+    return { url, name: guessFileNameFromUrl(url) };
+  }
+
+  if (!item || typeof item !== "object") return null;
+  const obj = item as Record<string, unknown>;
+  const url = [
+    obj.imageUrl,
+    obj.downloadUrl,
+    obj.fileUrl,
+    obj.url,
+    obj.path,
+    obj.link,
+    obj.presignedUrl,
+  ]
+    .map((v) => String(v ?? "").trim())
+    .find(Boolean);
+
+  if (!url) return null;
+  const resolvedUrl = resolveApiUrl(url);
+  if (!resolvedUrl) return null;
+
+  const name =
+    [
+      obj.originalFileName,
+      obj.fileName,
+      obj.filename,
+      obj.name,
+      obj.storedFileName,
+    ]
+      .map((v) => String(v ?? "").trim())
+      .find(Boolean) ?? guessFileNameFromUrl(resolvedUrl);
+
+  const sizeNum = Number(obj.fileSize ?? obj.size);
+  return {
+    name,
+    url: resolvedUrl,
+    size: Number.isFinite(sizeNum) ? sizeNum : undefined,
+  };
+}
+
+function extractAttachments(data: Record<string, unknown>) {
+  const candidates = [
+    data.files,
+    data.attachments,
+    data.attachmentFiles,
+    data.fileList,
+    data.uploadedFiles,
+  ];
+
+  for (const candidate of candidates) {
+    if (!Array.isArray(candidate)) continue;
+    const attachments = candidate
+      .map(toAttachment)
+      .filter(Boolean) as AttachmentItem[];
+    if (attachments.length > 0) return attachments;
+  }
+
+  const single = toAttachment(data.file ?? data.attachment);
+  if (single) return [single];
+
+  const directImage = toAttachment(data.imageUrl ?? data.image ?? data.thumbnailUrl);
+  return directImage ? [directImage] : [];
+}
+
+function formatSize(bytes?: number) {
+  if (!bytes || bytes <= 0) return "";
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
 
 export default function DashboardPostDetailPage() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const params = useParams<{ id: string }>();
+  const boardId = Number(params.id);
+  const me = useAuthStore((s) => s.user);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const myIdentities = getMyIdentityCandidates(accessToken, me);
+  const [downloadingUrl, setDownloadingUrl] = useState<string | null>(null);
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["board", boardId, ...myIdentities],
+    queryFn: () => getBoardDetail(boardId),
+    enabled: Number.isFinite(boardId),
+    select: (post) => ({
+      ...post,
+      canManage: isMinePost(post as Record<string, unknown>, myIdentities),
+    }),
+  });
+
+  const { data: adjacent } = useQuery({
+    queryKey: ["board-adjacent", boardId],
+    queryFn: () => getAdjacentBoards(boardId, "latest"),
+    enabled: Number.isFinite(boardId) && boardId > 0,
+    retry: 0,
+  });
+
+  const nextData = adjacent?.newer ?? null;
+  const prevData = adjacent?.older ?? null;
+
+  const { mutate: removeBoard, isPending: isDeleting } = useMutation({
+    mutationFn: () => deleteBoard(boardId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["boards"] });
+      router.push(ROUTES.DASHBOARD);
+    },
+    onError: (error: Error) => alert(`삭제 실패: ${error.message}`),
+  });
+
+  if (isLoading) {
+    return (
+      <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="mb-4 h-8 w-1/2 animate-pulse rounded bg-slate-200" />
+        <div className="mb-2 h-4 w-1/3 animate-pulse rounded bg-slate-100" />
+        <div className="mb-6 h-20 w-full animate-pulse rounded bg-slate-100" />
+      </section>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <section className="rounded-2xl border border-dashed border-slate-300 py-16 text-center text-slate-500">
+        게시글을 불러오지 못했어요.
+      </section>
+    );
+  }
+
+  const canManagePost = !!data.canManage;
+  const attachments = extractAttachments(data as Record<string, unknown>);
+
+  const handleDownload = async (file: AttachmentItem) => {
+    const normalizedToken = normalizeAccessToken(accessToken);
+    if (!normalizedToken) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
+
+    setDownloadingUrl(file.url);
+    try {
+      const res = await fetch("/api/attachments/download", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${normalizedToken}`,
+        },
+        body: JSON.stringify({
+          url: file.url,
+          name: file.name,
+        }),
+      });
+
+      if (!res.ok) {
+        const payload = (await res.json().catch(() => null)) as
+          | { message?: string }
+          | null;
+        throw new Error(payload?.message || `다운로드 실패 (${res.status})`);
+      }
+
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = file.name || "첨부파일";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "파일 다운로드에 실패했어요. 잠시 후 다시 시도해주세요.";
+      alert(message);
+    } finally {
+      setDownloadingUrl(null);
+    }
+  };
 
   return (
-    <section className="rounded-2xl border border-amber-200 bg-amber-50 p-8 text-amber-900">
-      <h1 className="mb-2 text-2xl font-bold">게시글 상세</h1>
-      <p className="mb-6 text-sm text-amber-800/80">
-        선택한 게시글 ID: <span className="font-semibold">{params.id}</span>
-      </p>
-      <Link
-        href="/dashboard"
-        className="inline-flex rounded-full border border-amber-300 bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-200"
-      >
-        목록으로 돌아가기
-      </Link>
+    <section className="min-h-[calc(100vh-68px)] bg-[#F9FAFB] px-4 py-8 font-sans sm:px-6">
+      <div className="mx-auto max-w-4xl">
+        <article className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_42px_-30px_rgba(15,23,42,0.35)]">
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 1200 120"
+            preserveAspectRatio="none"
+            className="pointer-events-none absolute left-0 top-0 h-8 w-full text-orange-100/80"
+          >
+            <path
+              fill="currentColor"
+              d="M0,64 C90,38 180,90 270,64 C360,38 450,90 540,64 C630,38 720,90 810,64 C900,38 990,90 1080,64 C1140,48 1170,48 1200,56 L1200,0 L0,0 Z"
+            />
+          </svg>
+
+          <div className="px-6 pb-8 pt-10 sm:px-10">
+            <header className="mb-6">
+              <span className="mb-3 inline-flex items-center rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">
+                카테고리 · {categoryToLabel(data.category)}
+              </span>
+              <h1 className="mb-3 text-3xl font-bold tracking-tight text-slate-900">
+                {data.title}
+              </h1>
+              <time className="text-sm text-slate-400">
+                {new Date(data.createdAt).toLocaleString("ko-KR")}
+              </time>
+            </header>
+
+            <section className="rounded-2xl border border-slate-100 bg-slate-50/60 p-6">
+              <article className="whitespace-pre-wrap text-[15px] leading-8 text-slate-700 sm:text-base sm:leading-9">
+                {data.content}
+              </article>
+            </section>
+
+            {attachments.length > 0 && (
+              <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_24px_-20px_rgba(15,23,42,0.35)]">
+                <h2 className="mb-2 text-sm font-bold text-slate-700">첨부파일</h2>
+                <ul className="space-y-2">
+                  {attachments.map((file) => (
+                    <li
+                      key={`${file.url}-${file.name}`}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm text-slate-700">{file.name}</p>
+                        {formatSize(file.size) && (
+                          <p className="text-xs text-slate-400">{formatSize(file.size)}</p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDownload(file)}
+                        disabled={downloadingUrl === file.url}
+                        aria-label={`${file.name} 다운로드`}
+                        title={downloadingUrl === file.url ? "다운로드 중" : "다운로드"}
+                        className="shrink-0 cursor-pointer rounded-lg border border-orange-200 bg-white p-2 text-slate-700 transition hover:bg-orange-50 hover:text-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {downloadingUrl === file.url ? (
+                          <span className="text-[10px] font-semibold">...</span>
+                        ) : (
+                          <svg
+                            aria-hidden="true"
+                            viewBox="0 0 24 24"
+                            className="h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M12 3v11" />
+                            <path d="m7 10 5 5 5-5" />
+                            <path d="M4 20h16" />
+                          </svg>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            <footer className="mt-8 space-y-3 border-t border-slate-100 pt-5">
+              <div className="grid grid-cols-3 gap-3 text-sm">
+                <div className="flex items-center justify-start">
+                  {nextData ? (
+                    <Link
+                      href={`${ROUTES.DASHBOARD}/${nextData.id}`}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-left transition hover:bg-slate-50"
+                    >
+                      <p className="text-xs font-semibold text-slate-400">다음 게시글</p>
+                      <p className="flex min-w-0 items-center font-semibold text-slate-700">
+                        <svg
+                          aria-hidden="true"
+                          viewBox="0 0 24 24"
+                          className="mr-1 inline h-4 w-4 align-[-2px] text-slate-600"
+                          fill="currentColor"
+                        >
+                          <path d="M15 4 7 12l8 8V4Z" />
+                        </svg>
+                        <span className="block min-w-0 truncate">{nextData.title}</span>
+                      </p>
+                    </Link>
+                  ) : null}
+                </div>
+                <div className="flex items-center justify-center">
+                  <Link
+                    href={ROUTES.DASHBOARD}
+                    className="group inline-flex h-9 w-9 items-center justify-center gap-0 overflow-hidden rounded-xl border border-slate-200 bg-white px-0 transition-all duration-300 hover:w-28 hover:justify-start hover:gap-2 hover:bg-slate-50 hover:px-2"
+                  >
+                    <span className="flex h-5 w-5 flex-col justify-center gap-0.5">
+                      <span className="h-0.5 w-4 rounded bg-slate-500" />
+                      <span className="h-0.5 w-4 rounded bg-slate-500" />
+                      <span className="h-0.5 w-4 rounded bg-slate-500" />
+                    </span>
+                    <span className="max-w-0 -translate-x-1 whitespace-nowrap text-sm font-semibold text-slate-700 opacity-0 transition-all duration-300 ease-out group-hover:max-w-[72px] group-hover:translate-x-0 group-hover:opacity-100">
+                      목록으로
+                    </span>
+                  </Link>
+                </div>
+                <div className="flex items-center justify-end">
+                  {prevData ? (
+                    <Link
+                      href={`${ROUTES.DASHBOARD}/${prevData.id}`}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-left transition hover:bg-slate-50"
+                    >
+                      <p className="text-xs font-semibold text-slate-400">이전 게시글</p>
+                      <p className="flex min-w-0 items-center font-semibold text-slate-700">
+                        <span className="block min-w-0 truncate">{prevData.title}</span>
+                        <svg
+                          aria-hidden="true"
+                          viewBox="0 0 24 24"
+                          className="ml-2 h-4 w-4 shrink-0 text-slate-600"
+                          fill="currentColor"
+                        >
+                          <path d="m9 4 8 8-8 8V4Z" />
+                        </svg>
+                      </p>
+                    </Link>
+                  ) : null}
+                </div>
+              </div>
+            </footer>
+          </div>
+
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 1200 120"
+            preserveAspectRatio="none"
+            className="pointer-events-none absolute bottom-0 left-0 h-7 w-full -scale-y-100 text-orange-100/80"
+          >
+            <path
+              fill="currentColor"
+              d="M0,64 C90,38 180,90 270,64 C360,38 450,90 540,64 C630,38 720,90 810,64 C900,38 990,90 1080,64 C1140,48 1170,48 1200,56 L1200,0 L0,0 Z"
+            />
+          </svg>
+        </article>
+      </div>
+
+      {canManagePost && (
+        <div className="fixed bottom-6 right-6 z-30 flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 p-2 shadow-lg backdrop-blur">
+          <button
+            type="button"
+            onClick={() => router.push(`${ROUTES.POST_WRITE}?mode=edit&id=${boardId}`)}
+            className="cursor-pointer rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+          >
+            수정
+          </button>
+          <button
+            type="button"
+            disabled={isDeleting}
+            onClick={() => {
+              const ok = window.confirm("정말 삭제할까요?");
+              if (ok) removeBoard();
+            }}
+            className="cursor-pointer rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            삭제
+          </button>
+        </div>
+      )}
     </section>
   );
 }

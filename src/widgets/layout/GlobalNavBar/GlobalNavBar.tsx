@@ -48,13 +48,15 @@ export function GlobalNavBar() {
     >
       <nav
         style={{
-          maxWidth: "60%",
+          width: "100%",
+          maxWidth: 1200,
           margin: "0 auto",
           height: 68,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 24px",
+          padding: "0 clamp(12px, 4vw, 24px)",
+          boxSizing: "border-box",
         }}
       >
         {/* 로고 */}
@@ -89,7 +91,14 @@ export function GlobalNavBar() {
 
         {/* 우측 액션 */}
         {user && (
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              marginLeft: "auto",
+            }}
+          >
             {/* 글쓰기 버튼 */}
             <Link
               href={ROUTES.POST_WRITE}

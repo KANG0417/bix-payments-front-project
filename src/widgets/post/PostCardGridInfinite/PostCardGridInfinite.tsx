@@ -57,6 +57,7 @@ export function PostCardGridInfinite({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const wasIntersectingRef = useRef(false);
   const rawAccessToken = useAuthStore((s) => s.accessToken);
+  const sessionExpired = useAuthStore((s) => s.sessionExpired);
   const isHydrated = useAuthStore((s) => s.isHydrated);
   const hasUsableToken = hasToken(
     rawAccessToken?.replace(/^Bearer\s+/i, "").trim() ?? null,
@@ -71,6 +72,7 @@ export function PostCardGridInfinite({
     useInfiniteBoards({
     category: queryCategory,
     size: PAGE_SIZE,
+    sort: sortOrder,
   });
   const items = data?.pages.flatMap((pageData) => pageData.content) ?? [];
   const posts = items.map((item) => ({
@@ -119,7 +121,7 @@ export function PostCardGridInfinite({
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  if (isHydrated && !hasUsableToken) {
+  if (isHydrated && (!hasUsableToken || sessionExpired)) {
     return (
       <section className="rounded-xl border border-dashed border-slate-300 py-12 text-center text-slate-500">
         <p className="mb-3">세션이 만료되었거나 인증 정보가 없어요.</p>

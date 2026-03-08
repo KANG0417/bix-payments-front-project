@@ -25,6 +25,14 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
 @keyframes loading-bar {
   0% {
     transform: translateX(-100%);
@@ -39,4 +47,58 @@ body {
 
 .animate-loading-bar {
   animation: loading-bar 1.5s ease-in-out infinite;
+}
+
+.scallop-frame {
+  position: relative;
+  border-radius: 22px;
+  padding: 10px;
+  background: linear-gradient(180deg, #fff8f4 0%, #fff5ef 100%);
+}
+
+.scallop-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 22px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 10px 10px, #fdc9b8 6px, transparent 6.5px) 0 0 / 20px 20px repeat,
+    linear-gradient(#fdd9cc, #fdd9cc);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  padding: 5px;
+}
+
+.peach-inner-frame {
+  border: 4px solid #f8c2ae;
+  border-radius: 16px;
+  background: #fffaf7;
+}
+
+.wavy-frame {
+  position: relative;
+  border-radius: 20px;
+  padding: 12px;
+  background: #fff7f2;
+}
+
+.wavy-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 8px 8px, #f7b9a5 5px, transparent 5.5px) 0 0 / 16px 16px repeat,
+    linear-gradient(#f7c7b6, #f7c7b6);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  padding: 4px;
 }

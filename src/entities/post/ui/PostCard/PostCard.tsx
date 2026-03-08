@@ -39,7 +39,7 @@ export function PostCard({ post }: PostCardProps) {
             </span>
           ))}
         </div>
-        <h2 className="mb-2 text-lg font-semibold text-slate-900 transition-colors duration-200 group-hover:text-amber-900">
+        <h2 className="mb-2 truncate text-lg font-semibold text-slate-900 transition-colors duration-200 group-hover:text-amber-900">
           {post.title}
         </h2>
         <p className="mb-3 flex-1 text-sm leading-relaxed text-slate-600 transition-colors duration-200 group-hover:text-amber-800/80">

@@ -11,10 +11,24 @@ export const CATEGORIES: { label: string; value: BoardCategory }[] = [
 /** 글쓰기 폼용 (전체 제외) */
 export const WRITE_CATEGORIES = CATEGORIES.filter((c) => c.label !== "전체");
 
+export const normalizeCategory = (value: unknown): BoardCategory => {
+  const raw = String(value ?? "")
+    .trim()
+    .toUpperCase();
+
+  if (raw === "ALL" || raw === "전체") return "ALL";
+  if (raw === "NOTICE" || raw === "공지") return "NOTICE";
+  if (raw === "FREE" || raw === "자유") return "FREE";
+  if (raw === "QNA" || raw === "질문") return "QNA";
+  if (raw === "ETC" || raw === "기타") return "ETC";
+
+  return "ETC";
+};
+
 /** UI label → API enum */
 export const labelToCategory = (label: string): BoardCategory =>
-  CATEGORIES.find((c) => c.label === label)?.value ?? "FREE";
+  normalizeCategory(label);
 
 /** API enum → UI label */
-export const categoryToLabel = (value: BoardCategory): string =>
-  CATEGORIES.find((c) => c.value === value)?.label ?? value;
+export const categoryToLabel = (value: unknown): string =>
+  CATEGORIES.find((c) => c.value === normalizeCategory(value))?.label ?? "기타";

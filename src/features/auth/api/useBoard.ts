@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type { BoardCategory } from "@entities/post/model/category";
 import { useAuthStore } from "@entities/user/model/auth-store";
+import { getMyIdentityCandidates, isMinePost } from "@features/post/model/ownership";
 
 const BASE_URL = "https://front-mission.bigs.or.kr";
 
@@ -11,6 +12,14 @@ export interface BoardItem {
   category: BoardCategory;
   createdAt: string;
   updatedAt: string;
+  writerId?: string | number;
+  authorId?: string | number;
+  userId?: string | number;
+  username?: string;
+  email?: string;
+  writer?: string;
+  createdBy?: string;
+  isMine?: boolean;
 }
 
 export interface BoardsResponse {
@@ -26,6 +35,7 @@ interface FetchBoardsParams {
   page?: number;
   size?: number;
   accessToken?: string;
+  sort?: "latest" | "oldest";
 }
 
 interface BoardCountMap {
@@ -58,16 +68,43 @@ export function hasToken(token: string | null) {
   return !!normalizeAccessToken(token);
 }
 
+function parseJwtPayload(token: string) {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const decoded = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join(""),
+    );
+    return JSON.parse(decoded) as { exp?: number };
+  } catch {
+    return null;
+  }
+}
+
+function isTokenFresh(token: string | null) {
+  const normalized = normalizeAccessToken(token);
+  if (!normalized) return false;
+  const payload = parseJwtPayload(normalized);
+  if (!payload?.exp) return true;
+  return payload.exp * 1000 > Date.now();
+}
+
 async function fetchBoards({
   category,
   page = 0,
   size = 10,
   accessToken,
+  sort = "latest",
 }: FetchBoardsParams): Promise<BoardsResponse> {
   const params = new URLSearchParams();
   if (category && category !== "ALL") params.set("category", category);
   params.set("page", String(page));
   params.set("size", String(size));
+  params.set("sort", `createdAt,${sort === "oldest" ? "asc" : "desc"}`);
 
   const normalizedToken = normalizeAccessToken(accessToken);
   if (!normalizedToken) throw new Error("로그인이 필요합니다.");
@@ -120,21 +157,33 @@ export function useBoards({
   category,
   page = 0,
   size = 10,
+  sort = "latest",
 }: FetchBoardsParams = {}) {
   const rawAccessToken = useAuthStore((s) => s.accessToken);
+  const me = useAuthStore((s) => s.user);
+  const sessionExpired = useAuthStore((s) => s.sessionExpired);
   const isHydrated = useAuthStore((s) => s.isHydrated);
   const accessToken = normalizeAccessToken(rawAccessToken);
-  const enabled = isHydrated && hasToken(accessToken);
+  const myIdentities = getMyIdentityCandidates(accessToken, me);
+  const enabled = isHydrated && !sessionExpired && isTokenFresh(accessToken);
 
   return useQuery({
-    queryKey: ["boards", category, page, size, accessToken],
+    queryKey: ["boards", category, page, size, sort, accessToken],
     queryFn: () =>
       fetchBoards({
         category,
         page,
         size,
         accessToken: accessToken,
+        sort,
       }),
+    select: (data) => ({
+      ...data,
+      content: data.content.map((post) => ({
+        ...post,
+        isMine: isMinePost(post as Record<string, unknown>, myIdentities),
+      })),
+    }),
     enabled,
   });
 }
@@ -142,20 +191,25 @@ export function useBoards({
 interface UseInfiniteBoardsParams {
   category?: BoardCategory | "ALL";
   size?: number;
+  sort?: "latest" | "oldest";
 }
 
 /** 게시글 무한 스크롤 조회 */
 export function useInfiniteBoards({
   category,
   size = 10,
+  sort = "latest",
 }: UseInfiniteBoardsParams = {}) {
   const rawAccessToken = useAuthStore((s) => s.accessToken);
+  const me = useAuthStore((s) => s.user);
+  const sessionExpired = useAuthStore((s) => s.sessionExpired);
   const isHydrated = useAuthStore((s) => s.isHydrated);
   const accessToken = normalizeAccessToken(rawAccessToken);
-  const enabled = isHydrated && hasToken(accessToken);
+  const myIdentities = getMyIdentityCandidates(accessToken, me);
+  const enabled = isHydrated && !sessionExpired && isTokenFresh(accessToken);
 
   return useInfiniteQuery({
-    queryKey: ["boards", "infinite", category, size, accessToken],
+    queryKey: ["boards", "infinite", category, size, sort, accessToken],
     initialPageParam: 0,
     queryFn: ({ pageParam }) =>
       fetchBoards({
@@ -163,6 +217,7 @@ export function useInfiniteBoards({
         page: pageParam,
         size,
         accessToken: accessToken,
+        sort,
       }),
     getNextPageParam: (lastPage) => {
       const totalPages = Number(lastPage.totalPages ?? 0);
@@ -171,6 +226,16 @@ export function useInfiniteBoards({
       const nextPage = Number(lastPage.number ?? 0) + 1;
       return nextPage < totalPages ? nextPage : undefined;
     },
+    select: (data) => ({
+      ...data,
+      pages: data.pages.map((pageData) => ({
+        ...pageData,
+        content: pageData.content.map((post) => ({
+          ...post,
+          isMine: isMinePost(post as Record<string, unknown>, myIdentities),
+        })),
+      })),
+    }),
     enabled,
   });
 }
@@ -178,9 +243,10 @@ export function useInfiniteBoards({
 /** 카테고리별 게시글 수 */
 export function useBoardCount(category?: BoardCategory | "ALL") {
   const rawAccessToken = useAuthStore((s) => s.accessToken);
+  const sessionExpired = useAuthStore((s) => s.sessionExpired);
   const isHydrated = useAuthStore((s) => s.isHydrated);
   const accessToken = normalizeAccessToken(rawAccessToken);
-  const enabled = isHydrated && hasToken(accessToken);
+  const enabled = isHydrated && !sessionExpired && isTokenFresh(accessToken);
 
   const { data } = useQuery({
     queryKey: ["boards", "count-map", accessToken],
