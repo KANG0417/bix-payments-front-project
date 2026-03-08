@@ -42,9 +42,6 @@ export function PostCountSummary({
             {currentFilterCount}
           </strong>
           개
-          {totalCount !== currentFilterCount && (
-            <span className="ml-1">(전체 {totalCount}개)</span>
-          )}
         </>
       )}
     </p>

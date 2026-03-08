@@ -51,7 +51,7 @@ export async function createBoard(
   request: CreateBoardRequest,
   file?: File,
 ): Promise<BoardResponse> {
-  const accessToken = getAccessToken();
+  const accessToken = normalizeAccessToken(getAccessToken());
   if (!accessToken) {
     throw new Error("로그인이 필요합니다. 다시 로그인해주세요.");
   }
@@ -75,6 +75,10 @@ export async function createBoard(
     body: formData,
     // Content-Type은 브라우저가 boundary 포함해서 자동 설정
   });
+
+  if (res.status === 401) {
+    useAuthStore.getState().setSessionExpired(true);
+  }
 
   if (!res.ok) {
     const errorText = await res.text();

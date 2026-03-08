@@ -8,9 +8,11 @@ interface AuthState {
   user: AuthUser | null;
   accessToken: string | null;
   refreshToken: string | null;
+  sessionExpired: boolean;
   isHydrated: boolean;
   setTokens: (accessToken: string, refreshToken: string) => void;
   logout: () => void;
+  setSessionExpired: (expired: boolean) => void;
   setHydrated: () => void;
 }
 
@@ -40,9 +42,11 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       accessToken: null,
       refreshToken: null,
+      sessionExpired: false,
       isHydrated: false,
 
       setHydrated: () => set({ isHydrated: true }),
+      setSessionExpired: (expired) => set({ sessionExpired: expired }),
 
       setTokens: (accessToken, refreshToken) => {
         const normalizedAccessToken = normalizeAccessToken(accessToken);
@@ -52,10 +56,21 @@ export const useAuthStore = create<AuthState>()(
           email: payload?.username ?? "",
           displayName: payload?.name ?? "",
         };
-        set({ accessToken: normalizedAccessToken, refreshToken, user });
+        set({
+          accessToken: normalizedAccessToken,
+          refreshToken,
+          user,
+          sessionExpired: false,
+        });
       },
 
-      logout: () => set({ user: null, accessToken: null, refreshToken: null }),
+      logout: () =>
+        set({
+          user: null,
+          accessToken: null,
+          refreshToken: null,
+          sessionExpired: false,
+        }),
     }),
     {
       name: "blog-auth",
@@ -63,6 +78,7 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
+        sessionExpired: state.sessionExpired,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated();

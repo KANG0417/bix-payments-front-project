@@ -28,22 +28,21 @@ interface FetchBoardsParams {
   accessToken?: string;
 }
 
+interface BoardCountMap {
+  ALL: number;
+  NOTICE: number;
+  FREE: number;
+  QNA: number;
+  ETC: number;
+}
+
 function normalizeAccessToken(token?: string | null) {
   if (!token) return null;
   return token.replace(/^Bearer\s+/i, "").trim();
 }
 
-function isJwtExpired(token: string) {
-  try {
-    const payloadPart = token.split(".")[1];
-    if (!payloadPart) return true;
-    const base64 = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
-    const payload = JSON.parse(atob(base64)) as { exp?: number };
-    if (!payload.exp) return false;
-    return payload.exp * 1000 <= Date.now();
-  } catch {
-    return true;
-  }
+export function hasToken(token: string | null) {
+  return !!normalizeAccessToken(token);
 }
 
 async function fetchBoards({
@@ -58,24 +57,50 @@ async function fetchBoards({
   params.set("size", String(size));
 
   const normalizedToken = normalizeAccessToken(accessToken);
-  if (!normalizedToken || isJwtExpired(normalizedToken)) {
-    useAuthStore.getState().logout();
-    throw new Error("인증이 만료되었습니다. 다시 로그인해주세요.");
-  }
+  if (!normalizedToken) throw new Error("로그인이 필요합니다.");
 
   const res = await fetch(`${BASE_URL}/boards?${params.toString()}`, {
-    headers: normalizedToken
-      ? {
-          Authorization: `Bearer ${normalizedToken}`,
-        }
-      : undefined,
+    headers: {
+      Authorization: `Bearer ${normalizedToken}`,
+    },
   });
+
   if (res.status === 401) {
-    useAuthStore.getState().logout();
-    throw new Error("인증이 만료되었습니다. 다시 로그인해주세요.");
+    useAuthStore.getState().setSessionExpired(true);
+    throw new Error("세션이 만료되었습니다. 다시 로그인해주세요.");
   }
   if (!res.ok) throw new Error(`서버 오류 (${res.status})`);
   return res.json();
+}
+
+async function fetchBoardCountMap(accessToken: string): Promise<BoardCountMap> {
+  const countMap: BoardCountMap = {
+    ALL: 0,
+    NOTICE: 0,
+    FREE: 0,
+    QNA: 0,
+    ETC: 0,
+  };
+
+  const first = await fetchBoards({ page: 0, size: 50, accessToken });
+  const totalPages = Number(first.totalPages ?? 1);
+
+  const collect = (items: BoardItem[]) => {
+    countMap.ALL += items.length;
+    items.forEach((item) => {
+      const key = item.category as keyof BoardCountMap;
+      if (key in countMap) countMap[key] += 1;
+    });
+  };
+
+  collect(first.content);
+
+  for (let page = 1; page < totalPages; page += 1) {
+    const next = await fetchBoards({ page, size: 50, accessToken });
+    collect(next.content);
+  }
+
+  return countMap;
 }
 
 export function useBoards({
@@ -86,7 +111,7 @@ export function useBoards({
   const rawAccessToken = useAuthStore((s) => s.accessToken);
   const isHydrated = useAuthStore((s) => s.isHydrated);
   const accessToken = normalizeAccessToken(rawAccessToken);
-  const enabled = isHydrated && !!accessToken;
+  const enabled = isHydrated && hasToken(accessToken);
 
   return useQuery({
     queryKey: ["boards", category, page, size, accessToken],
@@ -114,7 +139,7 @@ export function useInfiniteBoards({
   const rawAccessToken = useAuthStore((s) => s.accessToken);
   const isHydrated = useAuthStore((s) => s.isHydrated);
   const accessToken = normalizeAccessToken(rawAccessToken);
-  const enabled = isHydrated && !!accessToken;
+  const enabled = isHydrated && hasToken(accessToken);
 
   return useInfiniteQuery({
     queryKey: ["boards", "infinite", category, size, accessToken],
@@ -139,6 +164,19 @@ export function useInfiniteBoards({
 
 /** 카테고리별 게시글 수 */
 export function useBoardCount(category?: BoardCategory | "ALL") {
-  const { data } = useBoards({ category, size: 1 });
-  return data?.totalElements ?? 0;
+  const rawAccessToken = useAuthStore((s) => s.accessToken);
+  const isHydrated = useAuthStore((s) => s.isHydrated);
+  const accessToken = normalizeAccessToken(rawAccessToken);
+  const enabled = isHydrated && hasToken(accessToken);
+
+  const { data } = useQuery({
+    queryKey: ["boards", "count-map", accessToken],
+    queryFn: () => fetchBoardCountMap(accessToken as string),
+    enabled,
+    staleTime: 60 * 1000,
+  });
+
+  if (!data) return 0;
+  if (!category || category === "ALL") return data.ALL;
+  return data[category] ?? 0;
 }

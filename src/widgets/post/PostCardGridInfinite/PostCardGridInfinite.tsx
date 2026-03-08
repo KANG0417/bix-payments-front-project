@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 import { PostCard } from "@entities/post/ui/PostCard";
 import type { BoardCategory } from "@entities/post/model/category";
-import { useInfiniteBoards } from "@/src/features/auth/api/useBoard";
+import { hasToken, useInfiniteBoards } from "@/src/features/auth/api/useBoard";
 import { useAuthStore } from "@entities/user/model/auth-store";
+import { ROUTES } from "@shared/config/routes";
 
 interface PostCardGridInfiniteProps {
   selectedCategory: BoardCategory | "ALL";
@@ -39,9 +41,12 @@ export function PostCardGridInfinite({
   selectedCategory,
 }: PostCardGridInfiniteProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const requestedPageCountRef = useRef(0);
-  const accessToken = useAuthStore((s) => s.accessToken);
+  const wasIntersectingRef = useRef(false);
+  const rawAccessToken = useAuthStore((s) => s.accessToken);
   const isHydrated = useAuthStore((s) => s.isHydrated);
+  const hasUsableToken = hasToken(
+    rawAccessToken?.replace(/^Bearer\s+/i, "").trim() ?? null,
+  );
 
   // ✨ 핵심 수정: API 파라미터에서 "ALL"은 제외(undefined) 처리
   // 이렇게 하면 서버에는 category 파라미터가 가지 않아 전체 글을 불러옵니다.
@@ -53,12 +58,6 @@ export function PostCardGridInfinite({
     category: queryCategory,
     size: PAGE_SIZE,
   });
-  const pageCount = data?.pages.length ?? 0;
-
-  useEffect(() => {
-    requestedPageCountRef.current = 0;
-  }, [queryCategory]);
-
   const items = data?.pages.flatMap((pageData) => pageData.content) ?? [];
   const posts = items.map((item) => ({
     id: String(item.id),
@@ -86,20 +85,35 @@ export function PostCardGridInfinite({
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (!entries[0]?.isIntersecting || !hasNextPage || isFetchingNextPage)
-          return;
-        if (requestedPageCountRef.current === pageCount) return;
-        requestedPageCountRef.current = pageCount;
-        fetchNextPage();
+        const isIntersecting = !!entries[0]?.isIntersecting;
+        if (
+          isIntersecting &&
+          !wasIntersectingRef.current &&
+          hasNextPage &&
+          !isFetchingNextPage
+        ) {
+          fetchNextPage();
+        }
+        wasIntersectingRef.current = isIntersecting;
       },
-      { rootMargin: "100px" },
+      { rootMargin: "80px", threshold: 0.1 },
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage, pageCount]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  if (isHydrated && !accessToken) {
-    return <PostCardGridSkeleton />;
+  if (isHydrated && !hasUsableToken) {
+    return (
+      <section className="rounded-xl border border-dashed border-slate-300 py-12 text-center text-slate-500">
+        <p className="mb-3">세션이 만료되었거나 인증 정보가 없어요.</p>
+        <Link
+          href={ROUTES.LOGIN}
+          className="inline-flex rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+        >
+          로그인하러 가기
+        </Link>
+      </section>
+    );
   }
 
   if (isLoading) return <PostCardGridSkeleton />;

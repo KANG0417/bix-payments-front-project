@@ -283,7 +283,6 @@ export function LoginForm() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     value={password}
-                    placeholder="••••••••"
                     autoComplete="current-password"
                     aria-required="true"
                     aria-invalid={!!passwordError}

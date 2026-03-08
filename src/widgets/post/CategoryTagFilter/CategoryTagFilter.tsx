@@ -12,6 +12,10 @@ export function CategoryTagFilter({
   selectedCategory,
   onCategoryChange,
 }: CategoryTagFilterProps) {
+  const handleCategoryClick = (category: BoardCategory | "ALL") => {
+    onCategoryChange(category);
+  };
+
   return (
     <section className="flex flex-col items-start gap-5">
       <nav aria-label="카테고리 필터">
@@ -23,7 +27,7 @@ export function CategoryTagFilter({
           <li>
             <button
               type="button"
-              onClick={() => onCategoryChange("ALL")}
+              onClick={() => handleCategoryClick("ALL")}
               aria-pressed={selectedCategory === "ALL"}
               className={`cursor-pointer rounded-full px-5 py-2.5 text-base font-semibold transition-all duration-200
                 ${
@@ -41,7 +45,7 @@ export function CategoryTagFilter({
             <li key={cat.value}>
               <button
                 type="button"
-                onClick={() => onCategoryChange(cat.value)}
+                onClick={() => handleCategoryClick(cat.value)}
                 aria-pressed={selectedCategory === cat.value}
                 className={`cursor-pointer rounded-full px-5 py-2.5 text-base font-semibold transition-all duration-200
           ${
