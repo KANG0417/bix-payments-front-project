@@ -10,6 +10,7 @@ import { ROUTES } from "@shared/config/routes";
 
 interface PostCardGridInfiniteProps {
   selectedCategory: BoardCategory | "ALL";
+  sortOrder: "latest" | "oldest";
 }
 
 const PAGE_SIZE = 10;
@@ -29,7 +30,7 @@ function PostCardSkeleton() {
 
 function PostCardGridSkeleton({ count = SKELETON_COUNT }: { count?: number }) {
   return (
-    <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+    <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {Array.from({ length: count }, (_, idx) => (
         <PostCardSkeleton key={idx} />
       ))}
@@ -37,8 +38,21 @@ function PostCardGridSkeleton({ count = SKELETON_COUNT }: { count?: number }) {
   );
 }
 
+function normalizeCategory(value: unknown): BoardCategory | "ALL" | null {
+  const raw = String(value ?? "")
+    .trim()
+    .toUpperCase();
+  if (raw === "ALL" || raw === "전체") return "ALL";
+  if (raw === "NOTICE" || raw === "공지") return "NOTICE";
+  if (raw === "FREE" || raw === "자유") return "FREE";
+  if (raw === "QNA" || raw === "질문") return "QNA";
+  if (raw === "ETC" || raw === "기타") return "ETC";
+  return null;
+}
+
 export function PostCardGridInfinite({
   selectedCategory,
+  sortOrder,
 }: PostCardGridInfiniteProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const wasIntersectingRef = useRef(false);
@@ -73,10 +87,13 @@ export function PostCardGridInfinite({
     selectedCategory === "ALL"
       ? posts
       : posts.filter(
-          (post) =>
-            String(post.category).toUpperCase() ===
-            String(selectedCategory).toUpperCase(),
+          (post) => normalizeCategory(post.category) === selectedCategory,
         );
+  const sortedPosts = [...filteredPosts].sort((a, b) =>
+    sortOrder === "latest"
+      ? b.createdAt - a.createdAt
+      : a.createdAt - b.createdAt,
+  );
 
   useEffect(() => {
     if (!hasNextPage || isFetchingNextPage) return;
@@ -122,8 +139,8 @@ export function PostCardGridInfinite({
 
   return (
     <>
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {filteredPosts.map((post) => (
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {sortedPosts.map((post) => (
           <PostCard key={post.id} post={post} />
         ))}
         {isFetchingNextPage &&
@@ -132,7 +149,7 @@ export function PostCardGridInfinite({
           ))}
       </section>
 
-      {filteredPosts.length === 0 && (
+      {sortedPosts.length === 0 && (
         <p className="rounded-xl border border-dashed border-slate-300 py-16 text-center text-slate-500">
           아직 글이 없어요. 첫 글을 작성해 보세요 🌸
         </p>

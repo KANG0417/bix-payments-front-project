@@ -36,6 +36,19 @@ interface BoardCountMap {
   ETC: number;
 }
 
+function normalizeCategoryKey(value: unknown): keyof BoardCountMap | null {
+  const raw = String(value ?? "")
+    .trim()
+    .toUpperCase();
+
+  if (raw === "NOTICE" || raw === "공지") return "NOTICE";
+  if (raw === "FREE" || raw === "자유") return "FREE";
+  if (raw === "QNA" || raw === "질문") return "QNA";
+  if (raw === "ETC" || raw === "기타") return "ETC";
+  if (raw === "ALL" || raw === "전체") return "ALL";
+  return null;
+}
+
 function normalizeAccessToken(token?: string | null) {
   if (!token) return null;
   return token.replace(/^Bearer\s+/i, "").trim();
@@ -88,8 +101,8 @@ async function fetchBoardCountMap(accessToken: string): Promise<BoardCountMap> {
   const collect = (items: BoardItem[]) => {
     countMap.ALL += items.length;
     items.forEach((item) => {
-      const key = item.category as keyof BoardCountMap;
-      if (key in countMap) countMap[key] += 1;
+      const key = normalizeCategoryKey(item.category);
+      if (key && key !== "ALL") countMap[key] += 1;
     });
   };
 

@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@shared/ui/Button";
 import { useAuthStore } from "@entities/user/model/auth-store";
 import { ROUTES } from "@shared/config/routes";
@@ -32,9 +33,13 @@ const ALLOWED_EXT = ".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx";
 
 export function WritePostForm() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const { mutate: createBoard, isPending } = useCreateBoard({
-    onSuccess: () => router.push(ROUTES.DASHBOARD),
+    onSuccess: async () => {
+      await queryClient.removeQueries({ queryKey: ["boards"] });
+      router.push(`${ROUTES.DASHBOARD}?sort=latest`);
+    },
     onError: (error) => alert(`글 작성 실패: ${error.message}`),
   });
 
