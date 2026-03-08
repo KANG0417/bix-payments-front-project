@@ -102,3 +102,18 @@ button:disabled {
   mask-composite: exclude;
   padding: 4px;
 }
+
+@keyframes floating-appear {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-floating-appear {
+  animation: floating-appear 280ms ease-out both;
+}

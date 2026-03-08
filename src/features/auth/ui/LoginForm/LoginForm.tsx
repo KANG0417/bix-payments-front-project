@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { disassemble, assemble } from "es-hangul";
@@ -20,6 +20,8 @@ export function LoginForm() {
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const emailInputRef = useRef<HTMLInputElement>(null);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
 
   const [petals, setPetals] = useState<
     Array<{
@@ -241,25 +243,41 @@ export function LoginForm() {
                 >
                   이메일
                 </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  placeholder="example@email.com"
-                  autoComplete="email"
-                  aria-required="true"
-                  aria-invalid={!!emailError}
-                  aria-describedby={emailError ? "email-error" : undefined}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (emailError) setEmailError("");
-                  }}
-                  className={`box-border w-full rounded-xl bg-[#fff9fb] px-4 py-[13px] text-[15px] text-[#4a2030] outline-none transition-all ${
-                    emailError
-                      ? "border-[1.5px] border-[#f44336]"
-                      : "border-[1.5px] border-[#f9c6d0]"
-                  }`}
-                />
+                <div className="group relative">
+                  <input
+                    ref={emailInputRef}
+                    id="email"
+                    type="email"
+                    value={email}
+                    placeholder="example@email.com"
+                    autoComplete="email"
+                    aria-required="true"
+                    aria-invalid={!!emailError}
+                    aria-describedby={emailError ? "email-error" : undefined}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (emailError) setEmailError("");
+                    }}
+                    className={`box-border w-full rounded-xl bg-[#fff9fb] py-[13px] pl-4 pr-11 text-[15px] text-[#4a2030] outline-none transition-all ${
+                      emailError
+                        ? "border-[1.5px] border-[#f44336]"
+                        : "border-[1.5px] border-[#f9c6d0]"
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail("");
+                      setEmailError("");
+                      emailInputRef.current?.focus();
+                    }}
+                    disabled={email.length === 0}
+                    aria-label="이메일 전체 삭제"
+                    className="absolute right-3 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full border border-[#f3d6df] bg-white text-sm text-[#c9a0b0] opacity-0 transition hover:bg-[#fff4f8] group-hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-0"
+                  >
+                    x
+                  </button>
+                </div>
                 {emailError && (
                   <small
                     id="email-error"
@@ -278,8 +296,9 @@ export function LoginForm() {
                 >
                   비밀번호
                 </label>
-                <div className="relative">
+                <div className="group relative">
                   <input
+                    ref={passwordInputRef}
                     id="password"
                     type={showPassword ? "text" : "password"}
                     value={password}
@@ -293,12 +312,25 @@ export function LoginForm() {
                       setPassword(e.target.value);
                       if (passwordError) setPasswordError("");
                     }}
-                    className={`box-border w-full rounded-xl bg-[#fff9fb] py-[13px] pl-4 pr-11 text-[15px] text-[#4a2030] outline-none transition-all ${
+                    className={`box-border w-full rounded-xl bg-[#fff9fb] py-[13px] pl-4 pr-20 text-[15px] text-[#4a2030] outline-none transition-all ${
                       passwordError
                         ? "border-[1.5px] border-[#f44336]"
                         : "border-[1.5px] border-[#f9c6d0]"
                     }`}
                   />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPassword("");
+                      setPasswordError("");
+                      passwordInputRef.current?.focus();
+                    }}
+                    disabled={password.length === 0}
+                    aria-label="비밀번호 전체 삭제"
+                    className="absolute right-10 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full border border-[#f3d6df] bg-white text-sm text-[#c9a0b0] opacity-0 transition hover:bg-[#fff4f8] group-hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-0"
+                  >
+                    x
+                  </button>
                   <button
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
