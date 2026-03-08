@@ -1,42 +1,28 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { CategoryTagFilter } from "@widgets/post/CategoryTagFilter";
 import { PostCountSummary } from "@widgets/post/PostCountSummary";
 import { PostCardGridInfinite } from "@widgets/post/PostCardGridInfinite";
-import { useAuthStore } from "@entities/user/model/auth-store";
-import { usePostStore } from "@entities/post/model/post-store";
-import { DEFAULT_CATEGORIES } from "@entities/post";
+import type { BoardCategory } from "@entities/post/model/category";
+import { useBoardCount } from "@/src/features/auth/api/useBoard";
 
 export default function DashboardPage() {
-  const user = useAuthStore((s) => s.user);
-  const hydrate = usePostStore((s) => s.hydrate);
-  const getTotalCount = usePostStore((s) => s.getTotalCount);
-  const getFilteredCount = usePostStore((s) => s.getFilteredCount);
-  const getAllTags = usePostStore((s) => s.getAllTags);
+  const [selectedCategory, setSelectedCategory] = useState<
+    BoardCategory | "ALL"
+  >("ALL");
 
-  const [selectedCategory, setSelectedCategory] = useState<string>(DEFAULT_CATEGORIES[0]);
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  // 전체 게시글 수
+  const totalCount = useBoardCount("ALL");
 
-  useEffect(() => {
-    hydrate();
-  }, [hydrate]);
-
-  const authorId = user?.id ?? "";
-  const totalCount = authorId ? getTotalCount(authorId) : 0;
-  const currentFilterCount = authorId
-    ? getFilteredCount(authorId, selectedCategory, selectedTag)
-    : 0;
-  const tags = authorId ? getAllTags(authorId) : [];
+  // 현재 선택된 카테고리 게시글 수
+  const currentFilterCount = useBoardCount(selectedCategory);
 
   return (
     <div className="space-y-6">
       <CategoryTagFilter
         selectedCategory={selectedCategory}
-        selectedTag={selectedTag}
-        tags={tags}
         onCategoryChange={setSelectedCategory}
-        onTagChange={setSelectedTag}
       />
       <PostCountSummary
         totalCount={totalCount}
@@ -44,9 +30,8 @@ export default function DashboardPage() {
         selectedCategory={selectedCategory}
       />
       <PostCardGridInfinite
-        key={`${selectedCategory}:${selectedTag ?? "all"}`}
+        key={selectedCategory}
         selectedCategory={selectedCategory}
-        selectedTag={selectedTag}
       />
     </div>
   );
