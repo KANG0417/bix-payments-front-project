@@ -1,91 +1,124 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { PostCard } from "@entities/post/ui/PostCard";
-import { LoadingBar } from "@shared/ui/LoadingBar";
 import type { BoardCategory } from "@entities/post/model/category";
-import { useBoards } from "@/src/features/auth/api/useBoard";
+import { useInfiniteBoards } from "@/src/features/auth/api/useBoard";
+import { useAuthStore } from "@entities/user/model/auth-store";
 
 interface PostCardGridInfiniteProps {
-  selectedCategory: BoardCategory; // "ALL"이 포함된 타입
+  selectedCategory: BoardCategory | "ALL";
 }
 
-const PAGE_SIZE = 9;
+const PAGE_SIZE = 10;
+const SKELETON_COUNT = 10;
+
+function PostCardSkeleton() {
+  return (
+    <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-3 h-5 w-16 animate-pulse rounded bg-slate-200" />
+      <div className="mb-2 h-6 w-4/5 animate-pulse rounded bg-slate-200" />
+      <div className="mb-2 h-4 w-full animate-pulse rounded bg-slate-100" />
+      <div className="mb-2 h-4 w-11/12 animate-pulse rounded bg-slate-100" />
+      <div className="h-3 w-1/3 animate-pulse rounded bg-slate-100" />
+    </article>
+  );
+}
+
+function PostCardGridSkeleton({ count = SKELETON_COUNT }: { count?: number }) {
+  return (
+    <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      {Array.from({ length: count }, (_, idx) => (
+        <PostCardSkeleton key={idx} />
+      ))}
+    </section>
+  );
+}
 
 export function PostCardGridInfinite({
   selectedCategory,
 }: PostCardGridInfiniteProps) {
-  const [page, setPage] = useState(0);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const timerRef = useRef<number | null>(null);
+  const requestedPageCountRef = useRef(0);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const isHydrated = useAuthStore((s) => s.isHydrated);
 
   // ✨ 핵심 수정: API 파라미터에서 "ALL"은 제외(undefined) 처리
   // 이렇게 하면 서버에는 category 파라미터가 가지 않아 전체 글을 불러옵니다.
   const queryCategory =
     selectedCategory === "ALL" ? undefined : selectedCategory;
 
-  const { data, isLoading, isError } = useBoards({
+  const { data, isLoading, isError, hasNextPage, fetchNextPage, isFetchingNextPage } =
+    useInfiniteBoards({
     category: queryCategory,
-    page,
     size: PAGE_SIZE,
   });
-
-  // 카테고리 변경 시 페이지 초기화
-  useEffect(() => {
-    setPage(0);
-  }, [selectedCategory]);
+  const pageCount = data?.pages.length ?? 0;
 
   useEffect(() => {
-    return () => {
-      if (timerRef.current) window.clearTimeout(timerRef.current);
-    };
-  }, []);
+    requestedPageCountRef.current = 0;
+  }, [queryCategory]);
 
-  const totalPages = data?.totalPages ?? 1;
-  const hasMore = page < totalPages - 1;
-  const items = data?.content ?? [];
+  const items = data?.pages.flatMap((pageData) => pageData.content) ?? [];
+  const posts = items.map((item) => ({
+    id: String(item.id),
+    authorId: "",
+    title: item.title,
+    content: item.content,
+    category: item.category,
+    tags: [],
+    createdAt: new Date(item.createdAt).getTime(),
+    updatedAt: new Date(item.updatedAt).getTime(),
+  }));
+  const filteredPosts =
+    selectedCategory === "ALL"
+      ? posts
+      : posts.filter(
+          (post) =>
+            String(post.category).toUpperCase() ===
+            String(selectedCategory).toUpperCase(),
+        );
 
   useEffect(() => {
-    if (!hasMore || isFetchingMore) return;
+    if (!hasNextPage || isFetchingNextPage) return;
     const el = sentinelRef.current;
     if (!el) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (!entries[0]?.isIntersecting) return;
-        if (timerRef.current) return;
-        setIsFetchingMore(true);
-        timerRef.current = window.setTimeout(() => {
-          setPage((p) => p + 1);
-          setIsFetchingMore(false);
-          timerRef.current = null;
-        }, 400);
+        if (!entries[0]?.isIntersecting || !hasNextPage || isFetchingNextPage)
+          return;
+        if (requestedPageCountRef.current === pageCount) return;
+        requestedPageCountRef.current = pageCount;
+        fetchNextPage();
       },
       { rootMargin: "100px" },
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasMore, isFetchingMore]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, pageCount]);
 
-  if (isLoading && page === 0) return <LoadingBar />;
+  if (isHydrated && !accessToken) {
+    return <PostCardGridSkeleton />;
+  }
 
-  if (isError)
-    return (
-      <p className="py-16 text-center text-sm text-slate-400">
-        게시글을 불러오지 못했어요. 잠시 후 다시 시도해주세요.
-      </p>
-    );
+  if (isLoading) return <PostCardGridSkeleton />;
+
+  if (isError) return <PostCardGridSkeleton />;
 
   return (
     <>
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((post) => (
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {filteredPosts.map((post) => (
           <PostCard key={post.id} post={post} />
         ))}
+        {isFetchingNextPage &&
+          Array.from({ length: 5 }, (_, idx) => (
+            <PostCardSkeleton key={`skeleton-${idx}`} />
+          ))}
       </section>
 
-      {items.length === 0 && (
+      {filteredPosts.length === 0 && (
         <p className="rounded-xl border border-dashed border-slate-300 py-16 text-center text-slate-500">
           아직 글이 없어요. 첫 글을 작성해 보세요 🌸
         </p>
@@ -93,11 +126,6 @@ export function PostCardGridInfinite({
 
       <div ref={sentinelRef} className="h-4 w-full" />
 
-      {isFetchingMore && (
-        <output className="flex justify-center py-8">
-          <span className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
-        </output>
-      )}
     </>
   );
 }

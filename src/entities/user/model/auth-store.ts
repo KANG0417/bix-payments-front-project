@@ -31,6 +31,9 @@ const decodeJwt = (token: string) => {
   }
 };
 
+const normalizeAccessToken = (token: string) =>
+  token.replace(/^Bearer\s+/i, "").trim();
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -42,13 +45,14 @@ export const useAuthStore = create<AuthState>()(
       setHydrated: () => set({ isHydrated: true }),
 
       setTokens: (accessToken, refreshToken) => {
-        const payload = decodeJwt(accessToken);
+        const normalizedAccessToken = normalizeAccessToken(accessToken);
+        const payload = decodeJwt(normalizedAccessToken);
         const user: AuthUser = {
           id: payload?.username ?? "",
           email: payload?.username ?? "",
           displayName: payload?.name ?? "",
         };
-        set({ accessToken, refreshToken, user });
+        set({ accessToken: normalizedAccessToken, refreshToken, user });
       },
 
       logout: () => set({ user: null, accessToken: null, refreshToken: null }),

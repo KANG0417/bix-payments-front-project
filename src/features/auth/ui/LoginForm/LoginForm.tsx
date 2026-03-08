@@ -7,7 +7,7 @@ import { disassemble, assemble } from "es-hangul";
 import { useAuthStore } from "@entities/user/model/auth-store";
 import { ROUTES } from "@shared/config/routes";
 import { signin } from "@features/auth/api/signin";
-import { globalStyles, styles } from "./LoginForm.styles";
+import { animatedStyles, globalStyles } from "./LoginForm.styles";
 
 const TYPING_TEXT = "안녕하세요";
 const JAMOS = disassemble(TYPING_TEXT).split("");
@@ -157,7 +157,7 @@ export function LoginForm() {
       <style>{globalStyles}</style>
 
       {/* 봄 배경 */}
-      <div style={styles.springBg} aria-hidden="true" />
+      <div style={animatedStyles.springBg} aria-hidden="true" />
 
       {/* 벚꽃잎 */}
       {petals.map((p) => (
@@ -166,7 +166,7 @@ export function LoginForm() {
           aria-hidden="true"
           style={
             {
-              ...styles.petal,
+              ...animatedStyles.petal,
               left: `${p.x}%`,
               width: p.size,
               height: p.size * 0.75,
@@ -180,32 +180,44 @@ export function LoginForm() {
         />
       ))}
 
-      <main style={styles.main}>
-        <article style={styles.article}>
-          <header style={styles.header}>
-            <figure aria-label="블로그 로고" style={styles.logo}>
-              B
+      <main className="relative z-20 flex min-h-screen items-center justify-center px-4 py-12">
+        <article
+          className="w-full max-w-[440px]"
+          style={{ animation: "fadeUp 0.7s cubic-bezier(0.16,1,0.3,1) forwards" }}
+        >
+          <header className="mb-8 text-center">
+            <figure
+              aria-label="커뮤니티 로고"
+              className="mx-auto mb-4 inline-flex h-14 min-w-[96px] items-center justify-center rounded-[18px] bg-gradient-to-br from-[#f48fb1] to-[#ce93d8] px-3 text-lg font-black tracking-tight text-white shadow-[0_8px_24px_rgba(244,143,177,0.45)]"
+            >
+              CO.KR
             </figure>
-            <h1 style={styles.h1}>
+            <h1 className="m-0 min-h-[1.2em] text-[clamp(26px,5vw,34px)] font-black text-[#7b2d52]">
               {displayed}
-              <span style={styles.cursor} aria-hidden="true" />
+              <span style={animatedStyles.cursor} aria-hidden="true" />
               🌸
             </h1>
-            <p style={styles.subtitle}>내 블로그에 로그인하세요</p>
+            <p className="mt-2 text-[clamp(14px,3vw,16px)] text-[#b06080]">
+              로그인해서 글을 작성해보세요.
+            </p>
           </header>
 
-          <section style={styles.card}>
+          <section className="rounded-[28px] border-[1.5px] border-[rgba(255,198,218,0.6)] bg-[rgba(255,255,255,0.85)] p-[clamp(28px,5vw,44px)] shadow-[0_20px_60px_rgba(244,143,177,0.2),0_4px_20px_rgba(0,0,0,0.05)] backdrop-blur-[24px]">
             <form
               onSubmit={handleSubmit}
               noValidate
               aria-label="로그인 폼"
-              style={styles.form}
+              className="flex flex-col gap-5"
             >
               {isError && (
-                <output role="alert" aria-live="polite" style={styles.errorBox}>
+                <output
+                  role="alert"
+                  aria-live="polite"
+                  className="flex items-center gap-2.5 rounded-xl border border-[#ffcdd2] bg-[#fff0f3] px-4 py-3 text-sm font-medium text-[#c62828]"
+                >
                   <svg
                     aria-hidden="true"
-                    style={{ width: 16, height: 16, flexShrink: 0 }}
+                    className="h-4 w-4 shrink-0"
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
                     fill="none"
@@ -222,8 +234,11 @@ export function LoginForm() {
                 </output>
               )}
 
-              <fieldset style={styles.fieldset}>
-                <label htmlFor="email" style={styles.label}>
+              <fieldset className="m-0 flex flex-col gap-1.5 border-none p-0">
+                <label
+                  htmlFor="email"
+                  className="text-sm font-bold text-[#7b2d52]"
+                >
                   이메일
                 </label>
                 <input
@@ -239,20 +254,31 @@ export function LoginForm() {
                     setEmail(e.target.value);
                     if (emailError) setEmailError("");
                   }}
-                  style={emailError ? styles.inputError : styles.input}
+                  className={`box-border w-full rounded-xl bg-[#fff9fb] px-4 py-[13px] text-[15px] text-[#4a2030] outline-none transition-all ${
+                    emailError
+                      ? "border-[1.5px] border-[#f44336]"
+                      : "border-[1.5px] border-[#f9c6d0]"
+                  }`}
                 />
                 {emailError && (
-                  <small id="email-error" role="alert" style={styles.errorText}>
+                  <small
+                    id="email-error"
+                    role="alert"
+                    className="text-xs font-medium text-[#e53935]"
+                  >
                     {emailError}
                   </small>
                 )}
               </fieldset>
 
-              <fieldset style={styles.fieldset}>
-                <label htmlFor="password" style={styles.label}>
+              <fieldset className="m-0 flex flex-col gap-1.5 border-none p-0">
+                <label
+                  htmlFor="password"
+                  className="text-sm font-bold text-[#7b2d52]"
+                >
                   비밀번호
                 </label>
-                <div style={styles.inputWrap}>
+                <div className="relative">
                   <input
                     id="password"
                     type={showPassword ? "text" : "password"}
@@ -268,11 +294,11 @@ export function LoginForm() {
                       setPassword(e.target.value);
                       if (passwordError) setPasswordError("");
                     }}
-                    style={
+                    className={`box-border w-full rounded-xl bg-[#fff9fb] py-[13px] pl-4 pr-11 text-[15px] text-[#4a2030] outline-none transition-all ${
                       passwordError
-                        ? styles.inputPasswordError
-                        : styles.inputPassword
-                    }
+                        ? "border-[1.5px] border-[#f44336]"
+                        : "border-[1.5px] border-[#f9c6d0]"
+                    }`}
                   />
                   <button
                     type="button"
@@ -280,7 +306,7 @@ export function LoginForm() {
                     aria-label={
                       showPassword ? "비밀번호 숨기기" : "비밀번호 보기"
                     }
-                    style={styles.eyeButton}
+                    className="absolute right-3.5 top-1/2 flex -translate-y-1/2 cursor-pointer items-center border-none bg-transparent p-0 text-[#c9a0b0]"
                   >
                     {showPassword ? (
                       <svg
@@ -320,26 +346,28 @@ export function LoginForm() {
                   <small
                     id="password-error"
                     role="alert"
-                    style={styles.errorText}
+                    className="text-xs font-medium text-[#e53935]"
                   >
                     {passwordError}
                   </small>
                 )}
               </fieldset>
 
-              <div style={styles.buttonGroup}>
+              <div className="mt-1 flex flex-col gap-3">
                 <button
                   type="submit"
                   disabled={isPending}
                   aria-busy={isPending}
-                  style={
-                    isPending ? styles.btnPrimaryDisabled : styles.btnPrimary
-                  }
+                  className={`w-full rounded-xl border-none px-3.5 py-[14px] text-base font-bold text-white shadow-[0_6px_20px_rgba(244,143,177,0.45)] transition-all ${
+                    isPending
+                      ? "cursor-not-allowed bg-gradient-to-br from-[#f48fb1] to-[#ce93d8] opacity-60"
+                      : "cursor-pointer bg-gradient-to-br from-[#f48fb1] to-[#ce93d8]"
+                  }`}
                 >
                   {isPending ? (
-                    <span style={styles.spinnerWrap}>
+                    <span className="flex items-center justify-center gap-2">
                       <svg
-                        style={styles.spinner}
+                        className="inline-block animate-spin"
                         aria-hidden="true"
                         width="18"
                         height="18"
@@ -369,7 +397,7 @@ export function LoginForm() {
                 <button
                   type="button"
                   onClick={() => router.push(ROUTES.SIGNUP)}
-                  style={styles.btnSecondary}
+                  className="w-full cursor-pointer rounded-xl border-[1.5px] border-[#f9c6d0] bg-[rgba(244,143,177,0.08)] px-3.5 py-[14px] text-base font-semibold text-[#b06080] transition-all"
                 >
                   회원가입
                 </button>
@@ -377,8 +405,10 @@ export function LoginForm() {
             </form>
           </section>
 
-          <footer style={styles.footer}>
-            <small style={styles.footerText}>오늘도 좋은 하루 되세요 🌷</small>
+          <footer className="mt-6 text-center">
+            <small className="text-[13px] text-[#c084a0]">
+              오늘도 좋은 하루 되세요 🌷
+            </small>
           </footer>
         </article>
       </main>

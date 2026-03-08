@@ -273,14 +273,14 @@ export function WritePostForm() {
         <footer className="flex justify-end gap-2">
           <button
             type="submit"
-            className="cursor-pointer rounded-full px-6 py-2.5 text-base font-bold bg-amber-100 text-amber-600 shadow-sm shadow-amber-100 hover:bg-amber-200 transition-all border border-amber-200"
+            className="cursor-pointer rounded-full px-6 py-1.5 text-base font-bold bg-amber-100 text-amber-600 shadow-sm shadow-amber-100 hover:bg-amber-200 transition-all border border-amber-200"
           >
             작성
           </button>
           <button
             type="button"
             onClick={() => setShowCancelModal(true)}
-            className="cursor-pointer rounded-full px-6 py-2.5 text-base font-bold border border-slate-200 text-slate-400 hover:bg-slate-50 transition-all"
+            className="cursor-pointer rounded-full px-6 py-1.5 text-base font-bold border border-slate-200 text-slate-400 hover:bg-slate-50 transition-all"
           >
             취소
           </button>
