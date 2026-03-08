@@ -17,8 +17,10 @@ interface AuthState {
 const decodeJwt = (token: string) => {
   try {
     const payload = token.split(".")[1];
+    // Base64URL → Base64 변환 추가
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
     const decoded = decodeURIComponent(
-      atob(payload)
+      atob(base64)
         .split("")
         .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
         .join("")

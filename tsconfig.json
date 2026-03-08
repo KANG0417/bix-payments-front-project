@@ -33,7 +33,9 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "**/*.mts",
+    "src/features/auth/ui/LoginForm/LoginForm.styles.ts",
+    "src/features/auth/ui/LoginForm/LoginForm.styles.ts"
   ],
   "exclude": ["node_modules"]
 }
