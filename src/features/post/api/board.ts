@@ -1,7 +1,6 @@
 import axios from "axios";
 import type { BoardCategory } from "@entities/post/model/category";
 import { normalizeCategory } from "@entities/post/model/category";
-import { isMinePost } from "@features/post/model/ownership";
 import { authApi } from "@shared/api/auth-api";
 export type { BoardCategory };
 
@@ -124,7 +123,6 @@ export async function getAdjacentBoards(
   id: number,
   sort: "latest" | "oldest" = "latest",
   category?: BoardCategory | "ALL",
-  myIdentities: string[] = [],
 ): Promise<{ newer: BoardResponse | null; older: BoardResponse | null }> {
   const size = 20;
   let page = 0;
@@ -145,12 +143,7 @@ export async function getAdjacentBoards(
     });
     const data = normalizeBoardsPageResponse(pageData, category);
     const content = Array.isArray(data.content) ? data.content : [];
-    const scopedContent =
-      myIdentities.length > 0
-        ? content.filter((post) =>
-            isMinePost(post as unknown as Record<string, unknown>, myIdentities),
-          )
-        : content;
+    const scopedContent = content;
     totalPages = Number(data.totalPages ?? 1);
     const index = scopedContent.findIndex((post) => Number(post.id) === Number(id));
 
@@ -174,12 +167,7 @@ export async function getAdjacentBoards(
         });
         const nextData = normalizeBoardsPageResponse(nextPageData, category);
         const nextContent = Array.isArray(nextData.content) ? nextData.content : [];
-        const nextScopedContent =
-          myIdentities.length > 0
-            ? nextContent.filter((post) =>
-                isMinePost(post as unknown as Record<string, unknown>, myIdentities),
-              )
-            : nextContent;
+        const nextScopedContent = nextContent;
         older = nextScopedContent?.[0] ?? null;
       }
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { disassemble, assemble } from "es-hangul";
 import { useAuthStore } from "@entities/user/model/auth-store";
 import { ROUTES } from "@shared/config/routes";
@@ -14,6 +14,7 @@ const JAMOS = disassemble(TYPING_TEXT).split("");
 
 export function SigninForm() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const setTokens = useAuthStore((s) => s.setTokens);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -107,7 +108,8 @@ export function SigninForm() {
     isError,
   } = useMutation({
     mutationFn: signin,
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      queryClient.clear();
       setTokens(data.accessToken, data.refreshToken);
       router.push(ROUTES.DASHBOARD);
     },

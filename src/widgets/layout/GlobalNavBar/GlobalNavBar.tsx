@@ -4,11 +4,13 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@entities/user/model/auth-store";
 import { ROUTES } from "@shared/config/routes";
 
 export function GlobalNavBar() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -22,6 +24,7 @@ export function GlobalNavBar() {
     setPanelOpen(false);
     setDropdownOpen(false);
     logout();
+    queryClient.clear();
     router.replace(ROUTES.SIGNIN);
   };
 

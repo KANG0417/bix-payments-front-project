@@ -141,7 +141,6 @@ function getAdjacentFromInfiniteCache(
   boardId: number,
   sortOrder: "latest" | "oldest",
   category: BoardCategory,
-  myIdentities: string[],
 ) {
   const queries = queryClient.getQueriesData({
     queryKey: ["boards", "infinite"],
@@ -169,16 +168,9 @@ function getAdjacentFromInfiniteCache(
     }
   }
 
-  const scopedBoards =
-    myIdentities.length > 0
-      ? allBoards.filter((post) =>
-          isMinePost(post as unknown as Record<string, unknown>, myIdentities),
-        )
-      : allBoards;
+  if (allBoards.length === 0) return null;
 
-  if (scopedBoards.length === 0) return null;
-
-  const deduped = scopedBoards.filter((post, index, array) => {
+  const deduped = allBoards.filter((post, index, array) => {
     return (
       index === array.findIndex((candidate) => Number(candidate.id) === Number(post.id))
     );
@@ -290,10 +282,9 @@ export default function DashboardPostDetailPage() {
         boardId,
         sortOrder,
         effectiveCategory,
-        myIdentities,
       );
       if (cached) return cached;
-      return getAdjacentBoards(boardId, sortOrder, effectiveCategory, myIdentities);
+      return getAdjacentBoards(boardId, sortOrder, effectiveCategory);
     },
     enabled:
       Number.isFinite(boardId) &&
@@ -319,13 +310,16 @@ export default function DashboardPostDetailPage() {
     return category === effectiveCategory;
   };
 
+  const nextCandidate = sortOrder === "oldest" ? rawNextData : rawPrevData;
+  const prevCandidate = sortOrder === "oldest" ? rawPrevData : rawNextData;
+
   const nextData =
-    !isAdjacentFetching && belongsToEffectiveCategory(rawPrevData)
-      ? rawPrevData
+    !isAdjacentFetching && belongsToEffectiveCategory(nextCandidate)
+      ? nextCandidate
       : null;
   const prevData =
-    !isAdjacentFetching && belongsToEffectiveCategory(rawNextData)
-      ? rawNextData
+    !isAdjacentFetching && belongsToEffectiveCategory(prevCandidate)
+      ? prevCandidate
       : null;
 
   const { mutate: removeBoard, isPending: isDeleting } = useMutation({
@@ -568,10 +562,14 @@ export default function DashboardPostDetailPage() {
                         <svg
                           aria-hidden="true"
                           viewBox="0 0 24 24"
-                          className="mr-1 inline h-4 w-4 align-[-2px] text-slate-600"
-                          fill="currentColor"
+                          className="mr-1 h-4 w-4 shrink-0 text-slate-600"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
                         >
-                          <path d="M15 4 7 12l8 8V4Z" />
+                          <path d="m15 18-6-6 6-6" />
                         </svg>
                         <span className="block min-w-0 truncate">{nextData.title}</span>
                       </p>
@@ -606,9 +604,13 @@ export default function DashboardPostDetailPage() {
                           aria-hidden="true"
                           viewBox="0 0 24 24"
                           className="ml-2 h-4 w-4 shrink-0 text-slate-600"
-                          fill="currentColor"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
                         >
-                          <path d="m9 4 8 8-8 8V4Z" />
+                          <path d="m9 18 6-6-6-6" />
                         </svg>
                       </p>
                     </Link>
