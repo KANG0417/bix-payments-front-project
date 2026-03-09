@@ -188,6 +188,7 @@ export default function DashboardPostDetailPage() {
   const queryClient = useQueryClient();
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
+  const hasCategoryParam = searchParams.has("category");
   const boardId = Number(params.id);
   const me = useAuthStore((s) => s.user);
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -206,8 +207,9 @@ export default function DashboardPostDetailPage() {
     }),
   });
 
+  // 목록으로/이전다음 기준은 "현재 글의 카테고리"가 아니라 "진입 당시 category 쿼리"를 우선한다.
   const categoryFromPost = normalizeSelectedCategory(String(data?.category ?? ""));
-  const effectiveCategory = selectedCategory === "ALL" ? categoryFromPost : selectedCategory;
+  const effectiveCategory = hasCategoryParam ? selectedCategory : categoryFromPost;
 
   const buildDetailHref = (id: number | string) =>
     `${ROUTES.DASHBOARD}/${id}?category=${effectiveCategory}&sort=${sortOrder}`;
@@ -227,7 +229,7 @@ export default function DashboardPostDetailPage() {
     enabled:
       Number.isFinite(boardId) &&
       boardId > 0 &&
-      (selectedCategory !== "ALL" || !!data),
+      (hasCategoryParam || !!data),
     retry: 0,
   });
 
