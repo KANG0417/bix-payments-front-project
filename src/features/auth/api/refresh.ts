@@ -1,8 +1,7 @@
 import axios from "axios";
 import { useAuthStore } from "@entities/user/model/auth-store";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
-const AUTH_BASE_PATH = process.env.NEXT_PUBLIC_AUTH_BASE_PATH;
+const REFRESH_URL = process.env.NEXT_PUBLIC_AUTH_REFRESH_PATH;
 
 interface RefreshResponse {
   accessToken?: string;
@@ -48,14 +47,10 @@ export async function refreshAccessToken(): Promise<string> {
   if (refreshInFlight) return refreshInFlight;
 
   refreshInFlight = (async () => {
-    if (!API_BASE_URL || !AUTH_BASE_PATH) {
-      throw new Error(
-        "NEXT_PUBLIC_API_BASE_URL, NEXT_PUBLIC_AUTH_BASE_PATH 환경변수가 필요합니다.",
-      );
+    const refreshUrl = String(REFRESH_URL ?? "").trim();
+    if (!refreshUrl) {
+      throw new Error("NEXT_PUBLIC_AUTH_REFRESH_PATH 환경변수가 필요합니다.");
     }
-    const baseUrl = API_BASE_URL.replace(/\/$/, "");
-    const authBasePath = AUTH_BASE_PATH.replace(/^\/+/, "").replace(/\/+$/, "");
-    const refreshUrl = `${baseUrl}/${authBasePath}/refresh`;
 
     const refreshToken = getRefreshToken();
     if (!refreshToken) {

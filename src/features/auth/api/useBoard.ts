@@ -174,7 +174,7 @@ export function useBoards({
       ...data,
       content: data.content.map((post) => ({
         ...post,
-        isMine: isMinePost(post as Record<string, unknown>, myIdentities),
+        isMine: isMinePost(post as unknown as Record<string, unknown>, myIdentities),
       })),
     }),
     enabled,
@@ -226,7 +226,7 @@ export function useInfiniteBoards({
         ...pageData,
         content: pageData.content.map((post) => ({
           ...post,
-          isMine: isMinePost(post as Record<string, unknown>, myIdentities),
+          isMine: isMinePost(post as unknown as Record<string, unknown>, myIdentities),
         })),
       })),
     }),
