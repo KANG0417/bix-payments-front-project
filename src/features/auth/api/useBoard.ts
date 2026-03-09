@@ -2,9 +2,7 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { normalizeCategory, type BoardCategory } from "@entities/post/model/category";
 import { useAuthStore } from "@entities/user/model/auth-store";
 import { getMyIdentityCandidates, isMinePost } from "@features/post/model/ownership";
-import { refreshAccessToken } from "./refresh";
-
-const BASE_URL = "https://front-mission.bigs.or.kr";
+import { authApi } from "@shared/api/auth-api";
 
 export interface BoardItem {
   id: number;
@@ -75,8 +73,6 @@ async function fetchBoards({
   category,
   page = 0,
   size = 10,
-  accessToken,
-  refreshToken,
   sort = "latest",
 }: FetchBoardsParams): Promise<BoardsResponse> {
   const params = new URLSearchParams();
@@ -84,37 +80,9 @@ async function fetchBoards({
   params.set("page", String(page));
   params.set("size", String(size));
   params.set("sort", `createdAt,${sort === "oldest" ? "asc" : "desc"}`);
-
-  let normalizedToken = normalizeAccessToken(accessToken);
-  const normalizedRefreshToken = normalizeAccessToken(refreshToken);
-
-  if (!normalizedToken && normalizedRefreshToken) {
-    normalizedToken = await refreshAccessToken();
-  }
-  if (!normalizedToken) throw new Error("로그인이 필요합니다.");
-
-  let res = await fetch(`${BASE_URL}/boards?${params.toString()}`, {
-    headers: {
-      Authorization: `Bearer ${normalizedToken}`,
-    },
+  const { data } = await authApi.get<BoardsResponse>("/boards", {
+    params: Object.fromEntries(params.entries()),
   });
-
-  if (res.status === 401 && normalizedRefreshToken) {
-    const renewedAccessToken = await refreshAccessToken();
-    res = await fetch(`${BASE_URL}/boards?${params.toString()}`, {
-      headers: {
-        Authorization: `Bearer ${renewedAccessToken}`,
-      },
-    });
-  }
-
-  if (res.status === 401) {
-    useAuthStore.getState().setSessionExpired(true);
-    throw new Error("세션이 만료되었습니다. 다시 로그인해주세요.");
-  }
-  if (!res.ok) throw new Error(`서버 오류 (${res.status})`);
-
-  const data = (await res.json()) as BoardsResponse;
   const content = Array.isArray(data.content) ? data.content : [];
   const normalizedContent = content.map((item) => ({
     ...item,
@@ -200,8 +168,6 @@ export function useBoards({
         category,
         page,
         size,
-        accessToken: accessToken,
-        refreshToken,
         sort,
       }),
     select: (data) => ({
@@ -245,8 +211,6 @@ export function useInfiniteBoards({
         category,
         page: pageParam,
         size,
-        accessToken: accessToken,
-        refreshToken,
         sort,
       }),
     getNextPageParam: (lastPage) => {

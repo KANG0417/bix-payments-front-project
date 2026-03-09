@@ -1,12 +1,18 @@
+import axios from "axios";
 import { useAuthStore } from "@entities/user/model/auth-store";
 
-const REFRESH_URL = "https://front-mission.bigs.or.kr/auth/refresh";
+const REFRESH_URL = process.env.NEXT_PUBLIC_AUTH_REFRESH_URL;
 
 interface RefreshResponse {
   accessToken?: string;
   refreshToken?: string;
   token?: string;
 }
+
+type RefreshAttempt = {
+  headers?: Record<string, string>;
+  body?: { refreshToken: string };
+};
 
 function normalizeToken(token?: string | null) {
   if (!token) return null;
@@ -41,6 +47,10 @@ export async function refreshAccessToken(): Promise<string> {
   if (refreshInFlight) return refreshInFlight;
 
   refreshInFlight = (async () => {
+    if (!REFRESH_URL) {
+      throw new Error("올바른 URL주소를 입력해주세요.");
+    }
+
     const refreshToken = getRefreshToken();
     if (!refreshToken) {
       useAuthStore.getState().setSessionExpired(true);
@@ -48,47 +58,52 @@ export async function refreshAccessToken(): Promise<string> {
     }
 
     // 서버 구현 차이를 고려해 refresh 요청 포맷을 순차 시도
-    const attempts: RequestInit[] = [
+    const attempts: RefreshAttempt[] = [
       {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${refreshToken}`,
-        },
+        headers: { Authorization: `Bearer ${refreshToken}` },
       },
       {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ refreshToken }),
+        headers: { "Content-Type": "application/json" },
+        body: { refreshToken },
       },
       {
-        method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${refreshToken}`,
         },
-        body: JSON.stringify({ refreshToken }),
+        body: { refreshToken },
       },
     ];
 
-    let res: Response | null = null;
+    let responseData: RefreshResponse | null = null;
+    let status = 0;
     for (const attempt of attempts) {
-      res = await fetch(REFRESH_URL, attempt);
-      if (res.ok) break;
+      const res = await axios.post<RefreshResponse>(REFRESH_URL, attempt.body, {
+        headers: attempt.headers,
+        validateStatus: () => true,
+      });
+      status = res.status;
+      if (res.status >= 200 && res.status < 300) {
+        responseData = res.data;
+        break;
+      }
       // refresh token 자체가 만료/무효면 추가 포맷 시도 없이 종료
       if (res.status === 401) break;
     }
 
-    if (!res || !res.ok) {
+    if (!responseData) {
       useAuthStore.getState().logout();
       useAuthStore.getState().setSessionExpired(true);
-      throw new Error("세션이 만료되었습니다. 다시 로그인해주세요.");
+      if (status === 401) {
+        throw new Error("세션이 만료되었습니다. 다시 로그인해주세요.");
+      }
+      throw new Error("세션 갱신에 실패했습니다. 다시 로그인해주세요.");
     }
 
-    const data = (await res.json().catch(() => ({}))) as RefreshResponse;
-    const nextAccessToken = normalizeToken(data.accessToken ?? data.token ?? null);
-    const nextRefreshToken = normalizeToken(data.refreshToken ?? refreshToken);
+    const nextAccessToken = normalizeToken(
+      responseData.accessToken ?? responseData.token ?? null,
+    );
+    const nextRefreshToken = normalizeToken(responseData.refreshToken ?? refreshToken);
 
     if (!nextAccessToken || !nextRefreshToken) {
       useAuthStore.getState().logout();

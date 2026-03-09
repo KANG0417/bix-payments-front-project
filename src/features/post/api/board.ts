@@ -1,12 +1,8 @@
-const BASE_URL = (
-  process.env.NEXT_PUBLIC_API_BASE_URL || "https://front-mission.bigs.or.kr"
-).replace(/\/$/, "");
-
+import axios from "axios";
 import type { BoardCategory } from "@entities/post/model/category";
-import { useAuthStore } from "@entities/user/model/auth-store";
 import { normalizeCategory } from "@entities/post/model/category";
-import { refreshAccessToken } from "@features/auth/api/refresh";
 import { isMinePost } from "@features/post/model/ownership";
+import { authApi } from "@shared/api/auth-api";
 export type { BoardCategory };
 
 export interface CreateBoardRequest {
@@ -43,86 +39,22 @@ export interface UpdateBoardRequest {
   category: BoardCategory;
 }
 
-function normalizeAccessToken(token?: string | null) {
-  if (!token) return null;
-  return token.replace(/^Bearer\s+/i, "").trim();
-}
-
-function getAccessToken() {
-  const accessTokenFromStore = normalizeAccessToken(
-    useAuthStore.getState().accessToken,
-  );
-  if (accessTokenFromStore) return accessTokenFromStore;
-
-  if (typeof window === "undefined") return null;
-  try {
-    const persisted = window.localStorage.getItem("blog-auth");
-    if (!persisted) return null;
-    const parsed = JSON.parse(persisted) as {
-      state?: { accessToken?: string | null };
-    };
-    return normalizeAccessToken(parsed.state?.accessToken ?? null);
-  } catch {
-    return null;
+function resolveAxiosError(error: unknown, fallback: string) {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data;
+    if (typeof data === "string" && data.trim()) return data;
+    if (
+      data &&
+      typeof data === "object" &&
+      "message" in data &&
+      typeof (data as { message?: unknown }).message === "string"
+    ) {
+      return (data as { message: string }).message;
+    }
+    if (error.response?.status) return `서버 오류 (${error.response.status})`;
   }
-}
-
-function getRefreshToken() {
-  const refreshTokenFromStore = normalizeAccessToken(
-    useAuthStore.getState().refreshToken,
-  );
-  if (refreshTokenFromStore) return refreshTokenFromStore;
-
-  if (typeof window === "undefined") return null;
-  try {
-    const persisted = window.localStorage.getItem("blog-auth");
-    if (!persisted) return null;
-    const parsed = JSON.parse(persisted) as {
-      state?: { refreshToken?: string | null };
-    };
-    return normalizeAccessToken(parsed.state?.refreshToken ?? null);
-  } catch {
-    return null;
-  }
-}
-
-async function authFetch(url: string, init: RequestInit = {}) {
-  let accessToken = normalizeAccessToken(getAccessToken());
-  const refreshToken = normalizeAccessToken(getRefreshToken());
-
-  if (!accessToken && refreshToken) {
-    accessToken = await refreshAccessToken();
-  }
-
-  if (!accessToken) {
-    throw new Error("로그인이 필요합니다. 다시 로그인해주세요.");
-  }
-
-  let res = await fetch(url, {
-    ...init,
-    headers: {
-      ...(init.headers ?? {}),
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (res.status === 401 && refreshToken) {
-    const renewedAccessToken = await refreshAccessToken();
-    res = await fetch(url, {
-      ...init,
-      headers: {
-        ...(init.headers ?? {}),
-        Authorization: `Bearer ${renewedAccessToken}`,
-      },
-    });
-  }
-
-  if (res.status === 401) {
-    useAuthStore.getState().setSessionExpired(true);
-    throw new Error("세션이 만료되었습니다. 다시 로그인해주세요.");
-  }
-
-  return res;
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
 }
 
 function normalizeBoardResponse(raw: unknown): BoardResponse {
@@ -160,43 +92,31 @@ export async function createBoard(
   request: CreateBoardRequest,
   file?: File,
 ): Promise<BoardResponse> {
-  const formData = new FormData();
+  try {
+    const formData = new FormData();
+    formData.append(
+      "request",
+      new Blob([JSON.stringify(request)], { type: "application/json" }),
+    );
+    if (file) {
+      formData.append("file", file);
+    }
 
-  formData.append(
-    "request",
-    new Blob([JSON.stringify(request)], { type: "application/json" }),
-  );
-
-  if (file) {
-    formData.append("file", file);
+    const { data } = await authApi.post("/boards", formData);
+    return normalizeBoardResponse(data);
+  } catch (error) {
+    throw new Error(resolveAxiosError(error, "글 작성에 실패했습니다."));
   }
-
-  const res = await authFetch(`${BASE_URL}/boards`, {
-    method: "POST",
-    body: formData,
-    // Content-Type은 브라우저가 boundary 포함해서 자동 설정
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(errorText || `서버 오류 (${res.status})`);
-  }
-
-  return normalizeBoardResponse(await res.json());
 }
 
 /** 게시글 단건 조회 */
 export async function getBoardDetail(id: number): Promise<BoardResponse> {
-  const res = await authFetch(`${BASE_URL}/boards/${id}`, {
-    method: "GET",
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(errorText || `서버 오류 (${res.status})`);
+  try {
+    const { data } = await authApi.get(`/boards/${id}`);
+    return normalizeBoardResponse(data);
+  } catch (error) {
+    throw new Error(resolveAxiosError(error, "게시글 조회에 실패했습니다."));
   }
-
-  return normalizeBoardResponse(await res.json());
 }
 
 /** 게시글 인접 글 조회 (목록 순서 기준) */
@@ -220,16 +140,10 @@ export async function getAdjacentBoards(
       params.set("category", category);
     }
 
-    const res = await authFetch(`${BASE_URL}/boards?${params.toString()}`, {
-      method: "GET",
+    const { data: pageData } = await authApi.get("/boards", {
+      params: Object.fromEntries(params.entries()),
     });
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(errorText || `서버 오류 (${res.status})`);
-    }
-
-    const data = normalizeBoardsPageResponse(await res.json(), category);
+    const data = normalizeBoardsPageResponse(pageData, category);
     const content = Array.isArray(data.content) ? data.content : [];
     const scopedContent =
       myIdentities.length > 0
@@ -255,16 +169,10 @@ export async function getAdjacentBoards(
           nextParams.set("category", category);
         }
 
-        const nextRes = await authFetch(`${BASE_URL}/boards?${nextParams.toString()}`, {
-          method: "GET",
+        const { data: nextPageData } = await authApi.get("/boards", {
+          params: Object.fromEntries(nextParams.entries()),
         });
-
-        if (!nextRes.ok) {
-          const errorText = await nextRes.text();
-          throw new Error(errorText || `서버 오류 (${nextRes.status})`);
-        }
-
-        const nextData = normalizeBoardsPageResponse(await nextRes.json(), category);
+        const nextData = normalizeBoardsPageResponse(nextPageData, category);
         const nextContent = Array.isArray(nextData.content) ? nextData.content : [];
         const nextScopedContent =
           myIdentities.length > 0
@@ -294,34 +202,27 @@ export async function updateBoard(
   request: UpdateBoardRequest,
   file?: File,
 ): Promise<void> {
-  const formData = new FormData();
-  formData.append(
-    "request",
-    new Blob([JSON.stringify(request)], { type: "application/json" }),
-  );
-  if (file) {
-    formData.append("file", file);
-  }
+  try {
+    const formData = new FormData();
+    formData.append(
+      "request",
+      new Blob([JSON.stringify(request)], { type: "application/json" }),
+    );
+    if (file) {
+      formData.append("file", file);
+    }
 
-  const res = await authFetch(`${BASE_URL}/boards/${id}`, {
-    method: "PATCH",
-    body: formData,
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(errorText || `서버 오류 (${res.status})`);
+    await authApi.patch(`/boards/${id}`, formData);
+  } catch (error) {
+    throw new Error(resolveAxiosError(error, "글 수정에 실패했습니다."));
   }
 }
 
 /** 게시글 삭제 */
 export async function deleteBoard(id: number): Promise<void> {
-  const res = await authFetch(`${BASE_URL}/boards/${id}`, {
-    method: "DELETE",
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(errorText || `서버 오류 (${res.status})`);
+  try {
+    await authApi.delete(`/boards/${id}`);
+  } catch (error) {
+    throw new Error(resolveAxiosError(error, "글 삭제에 실패했습니다."));
   }
 }
