@@ -8,9 +8,10 @@ export const CATEGORIES: { label: string; value: BoardCategory }[] = [
   { label: "기타", value: "ETC" },
 ];
 
-/** 글쓰기 폼용 (전체 제외) */
+/** 글쓰기 폼에서 사용하는 카테고리 목록 (`전체` 제외) */
 export const WRITE_CATEGORIES = CATEGORIES.filter((c) => c.label !== "전체");
 
+/** 한글 라벨/API 값을 `BoardCategory`로 정규화 */
 export const normalizeCategory = (value: unknown): BoardCategory => {
   const raw = String(value ?? "")
     .trim()
@@ -25,10 +26,10 @@ export const normalizeCategory = (value: unknown): BoardCategory => {
   return "ETC";
 };
 
-/** UI label → API enum */
+/** UI 라벨을 API 카테고리 값으로 변환 */
 export const labelToCategory = (label: string): BoardCategory =>
   normalizeCategory(label);
 
-/** API enum → UI label */
+/** API 카테고리 값을 UI 라벨로 변환 */
 export const categoryToLabel = (value: unknown): string =>
   CATEGORIES.find((c) => c.value === normalizeCategory(value))?.label ?? "기타";
