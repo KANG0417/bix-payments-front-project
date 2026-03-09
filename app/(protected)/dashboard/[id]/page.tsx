@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
@@ -139,6 +139,7 @@ function getAdjacentFromInfiniteCache(
   boardId: number,
   sortOrder: "latest" | "oldest",
   category: BoardCategory,
+  myIdentities: string[],
 ) {
   const queries = queryClient.getQueriesData({
     queryKey: ["boards", "infinite"],
@@ -166,9 +167,16 @@ function getAdjacentFromInfiniteCache(
     }
   }
 
-  if (allBoards.length === 0) return null;
+  const scopedBoards =
+    myIdentities.length > 0
+      ? allBoards.filter((post) =>
+          isMinePost(post as unknown as Record<string, unknown>, myIdentities),
+        )
+      : allBoards;
 
-  const deduped = allBoards.filter((post, index, array) => {
+  if (scopedBoards.length === 0) return null;
+
+  const deduped = scopedBoards.filter((post, index, array) => {
     return (
       index === array.findIndex((candidate) => Number(candidate.id) === Number(post.id))
     );
@@ -181,6 +189,43 @@ function getAdjacentFromInfiniteCache(
     newer: targetIndex > 0 ? deduped[targetIndex - 1] : null,
     older: targetIndex < deduped.length - 1 ? deduped[targetIndex + 1] : null,
   };
+}
+
+function getManagePermissionFromBoardCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  boardId: number,
+  myIdentities: string[],
+) {
+  const cached = queryClient.getQueriesData({
+    queryKey: ["boards"],
+  });
+
+  for (const [, queryData] of cached) {
+    const data = queryData as
+      | { content?: BoardResponse[]; pages?: Array<{ content?: BoardResponse[] }> }
+      | undefined;
+
+    const directContent = Array.isArray(data?.content) ? data.content : [];
+    for (const item of directContent) {
+      if (Number(item.id) !== Number(boardId)) continue;
+      if (isMinePost(item as unknown as Record<string, unknown>, myIdentities)) {
+        return true;
+      }
+    }
+
+    const pages = Array.isArray(data?.pages) ? data.pages : [];
+    for (const page of pages) {
+      const content = Array.isArray(page?.content) ? page.content : [];
+      for (const item of content) {
+        if (Number(item.id) !== Number(boardId)) continue;
+        if (isMinePost(item as unknown as Record<string, unknown>, myIdentities)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
 }
 
 export default function DashboardPostDetailPage() {
@@ -215,16 +260,17 @@ export default function DashboardPostDetailPage() {
     `${ROUTES.DASHBOARD}/${id}?category=${effectiveCategory}&sort=${sortOrder}`;
 
   const { data: adjacent, isFetching: isAdjacentFetching } = useQuery({
-    queryKey: ["board-adjacent", boardId, effectiveCategory, sortOrder],
+    queryKey: ["board-adjacent", boardId, effectiveCategory, sortOrder, ...myIdentities],
     queryFn: async () => {
       const cached = getAdjacentFromInfiniteCache(
         queryClient,
         boardId,
         sortOrder,
         effectiveCategory,
+        myIdentities,
       );
       if (cached) return cached;
-      return getAdjacentBoards(boardId, sortOrder, effectiveCategory);
+      return getAdjacentBoards(boardId, sortOrder, effectiveCategory, myIdentities);
     },
     enabled:
       Number.isFinite(boardId) &&
@@ -268,6 +314,11 @@ export default function DashboardPostDetailPage() {
     onError: (error: Error) => alert(`삭제 실패: ${error.message}`),
   });
 
+  const canManageFromCache = useMemo(
+    () => getManagePermissionFromBoardCaches(queryClient, boardId, myIdentities),
+    [queryClient, boardId, myIdentities],
+  );
+
   if (isLoading) {
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
@@ -286,8 +337,12 @@ export default function DashboardPostDetailPage() {
     );
   }
 
-  const canManagePost = !!data.canManage;
+  const canManagePost = !!data.canManage || canManageFromCache;
   const attachments = extractAttachments(data as Record<string, unknown>);
+  const isUpdatedPost =
+    Number.isFinite(new Date(data.updatedAt).getTime()) &&
+    Number.isFinite(new Date(data.createdAt).getTime()) &&
+    new Date(data.updatedAt).getTime() > new Date(data.createdAt).getTime();
 
   const handleDownload = async (file: AttachmentItem) => {
     const normalizedToken = normalizeAccessToken(accessToken);
@@ -361,9 +416,38 @@ export default function DashboardPostDetailPage() {
               <h1 className="mb-3 text-3xl font-bold tracking-tight text-slate-900">
                 {data.title}
               </h1>
-              <time className="text-sm text-slate-400">
-                {new Date(data.createdAt).toLocaleString("ko-KR")}
-              </time>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <time className="text-sm text-slate-400">
+                    {new Date(data.createdAt).toLocaleString("ko-KR")}
+                  </time>
+                  {isUpdatedPost && (
+                    <span className="inline-flex items-center rounded-full border border-yellow-200 bg-yellow-50 px-2 py-0.5 text-xs font-semibold text-yellow-700">
+                      수정됨
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => router.push(`${ROUTES.POST_WRITE}?mode=edit&id=${boardId}`)}
+                    className="cursor-pointer rounded-full border border-yellow-200 bg-yellow-100 px-4 py-2 text-sm font-semibold text-yellow-800 transition hover:bg-yellow-200"
+                  >
+                    수정
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isDeleting}
+                    onClick={() => {
+                      const ok = window.confirm("정말 삭제할까요?");
+                      if (ok) removeBoard();
+                    }}
+                    className="cursor-pointer rounded-full border border-[#f6c7b2] bg-[#ffe8dc] px-4 py-2 text-sm font-semibold text-[#b76842] transition hover:bg-[#ffdccc] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    삭제
+                  </button>
+                </div>
+              </div>
             </header>
 
             <section className="rounded-2xl border border-slate-100 bg-slate-50/60 p-6">
@@ -374,7 +458,17 @@ export default function DashboardPostDetailPage() {
 
             {attachments.length > 0 && (
               <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_24px_-20px_rgba(15,23,42,0.35)]">
-                <h2 className="mb-2 text-sm font-bold text-slate-700">첨부파일</h2>
+                <div className="mb-2 flex items-center gap-2">
+                  <h2 className="text-sm font-bold text-slate-700">첨부파일</h2>
+                  <a
+                    href={attachments[0]?.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="shrink-0 rounded-md border border-yellow-200 bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-800 transition hover:bg-yellow-200"
+                  >
+                    미리보기
+                  </a>
+                </div>
                 <ul className="space-y-2">
                   {attachments.map((file) => (
                     <li
@@ -393,10 +487,31 @@ export default function DashboardPostDetailPage() {
                         disabled={downloadingUrl === file.url}
                         aria-label={`${file.name} 다운로드`}
                         title={downloadingUrl === file.url ? "다운로드 중" : "다운로드"}
-                        className="shrink-0 cursor-pointer rounded-lg border border-orange-200 bg-white p-2 text-slate-700 transition hover:bg-orange-50 hover:text-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="shrink-0 cursor-pointer rounded-lg border border-yellow-300 bg-white p-2 text-yellow-700 transition hover:bg-yellow-100 hover:text-yellow-800 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {downloadingUrl === file.url ? (
-                          <span className="text-[10px] font-semibold">...</span>
+                          <svg
+                            className="h-4 w-4 animate-spin"
+                            aria-hidden="true"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                          >
+                            <circle
+                              cx="12"
+                              cy="12"
+                              r="9"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                              className="opacity-25"
+                            />
+                            <path
+                              d="M21 12a9 9 0 0 0-9-9"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              className="opacity-90"
+                            />
+                          </svg>
                         ) : (
                           <svg
                             aria-hidden="true"
@@ -497,28 +612,6 @@ export default function DashboardPostDetailPage() {
         </article>
       </div>
 
-      {canManagePost && (
-        <div className="animate-floating-appear fixed bottom-6 right-6 z-30 flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50/95 p-2 shadow-lg backdrop-blur">
-          <button
-            type="button"
-            onClick={() => router.push(`${ROUTES.POST_WRITE}?mode=edit&id=${boardId}`)}
-            className="cursor-pointer rounded-full border border-orange-200 bg-orange-100 px-4 py-2 text-sm font-semibold text-orange-800 transition hover:bg-orange-200"
-          >
-            수정
-          </button>
-          <button
-            type="button"
-            disabled={isDeleting}
-            onClick={() => {
-              const ok = window.confirm("정말 삭제할까요?");
-              if (ok) removeBoard();
-            }}
-            className="cursor-pointer rounded-full border border-orange-200 bg-orange-100 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-orange-200 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            삭제
-          </button>
-        </div>
-      )}
     </section>
   );
 }

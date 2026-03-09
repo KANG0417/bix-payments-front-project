@@ -268,7 +268,6 @@ export function SignupForm() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     value={password}
-                    placeholder="••••••••"
                     required
                     autoComplete="new-password"
                     aria-invalid={!!fieldErrors.password?.[0]}
@@ -351,7 +350,6 @@ export function SignupForm() {
                     id="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
                     value={confirmPassword}
-                    placeholder="••••••••"
                     required
                     autoComplete="new-password"
                     aria-invalid={!!fieldErrors.confirmPassword?.[0]}

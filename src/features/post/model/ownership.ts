@@ -42,6 +42,7 @@ export function getMyIdentityCandidates(
     jwtPayload?.username,
     jwtPayload?.email,
     jwtPayload?.name,
+    jwtPayload?.nickname,
   ];
 
   return Array.from(
@@ -52,21 +53,42 @@ export function getMyIdentityCandidates(
 export function getPostOwnerCandidates(post: AnyRecord) {
   const author = post.author as AnyRecord | undefined;
   const user = post.user as AnyRecord | undefined;
+  const member = post.member as AnyRecord | undefined;
 
   const values = [
     post.writerId,
+    post.memberId,
+    post.accountId,
     post.authorId,
     post.userId,
+    post.ownerId,
     post.username,
+    post.userName,
     post.email,
+    post.writerEmail,
     post.writer,
+    post.name,
+    post.nickname,
+    post.authorName,
     post.createdBy,
     post.author,
     post.user,
+    post.member,
     author?.id,
+    author?.username,
+    author?.name,
+    author?.nickname,
     author?.email,
     user?.id,
+    user?.username,
+    user?.name,
+    user?.nickname,
     user?.email,
+    member?.id,
+    member?.username,
+    member?.name,
+    member?.nickname,
+    member?.email,
   ];
 
   return Array.from(

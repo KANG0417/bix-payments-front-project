@@ -4,6 +4,7 @@ import type { BoardCategory } from "@entities/post/model/category";
 import { useAuthStore } from "@entities/user/model/auth-store";
 import { normalizeCategory } from "@entities/post/model/category";
 import { refreshAccessToken } from "@features/auth/api/refresh";
+import { isMinePost } from "@features/post/model/ownership";
 export type { BoardCategory };
 
 export interface CreateBoardRequest {
@@ -131,12 +132,20 @@ function normalizeBoardResponse(raw: unknown): BoardResponse {
   };
 }
 
-function normalizeBoardsPageResponse(raw: unknown): BoardsPageResponse {
+function normalizeBoardsPageResponse(
+  raw: unknown,
+  expectedCategory?: BoardCategory | "ALL",
+): BoardsPageResponse {
   const page = (raw ?? {}) as Record<string, unknown>;
   const content = Array.isArray(page.content) ? page.content : [];
+  const normalizedContent = content.map((item) => normalizeBoardResponse(item));
+  const filteredContent =
+    expectedCategory && expectedCategory !== "ALL"
+      ? normalizedContent.filter((item) => item.category === expectedCategory)
+      : normalizedContent;
   return {
     ...(page as BoardsPageResponse),
-    content: content.map((item) => normalizeBoardResponse(item)),
+    content: filteredContent,
     totalPages: Number(page.totalPages ?? 1),
   };
 }
@@ -193,6 +202,7 @@ export async function getAdjacentBoards(
   id: number,
   sort: "latest" | "oldest" = "latest",
   category?: BoardCategory | "ALL",
+  myIdentities: string[] = [],
 ): Promise<{ newer: BoardResponse | null; older: BoardResponse | null }> {
   const size = 20;
   let page = 0;
@@ -217,17 +227,23 @@ export async function getAdjacentBoards(
       throw new Error(errorText || `서버 오류 (${res.status})`);
     }
 
-    const data = normalizeBoardsPageResponse(await res.json());
+    const data = normalizeBoardsPageResponse(await res.json(), category);
     const content = Array.isArray(data.content) ? data.content : [];
+    const scopedContent =
+      myIdentities.length > 0
+        ? content.filter((post) =>
+            isMinePost(post as unknown as Record<string, unknown>, myIdentities),
+          )
+        : content;
     totalPages = Number(data.totalPages ?? 1);
-    const index = content.findIndex((post) => Number(post.id) === Number(id));
+    const index = scopedContent.findIndex((post) => Number(post.id) === Number(id));
 
     if (index >= 0) {
-      const newer = index > 0 ? content[index - 1] : previousPageLast;
+      const newer = index > 0 ? scopedContent[index - 1] : previousPageLast;
 
       let older: BoardResponse | null = null;
-      if (index < content.length - 1) {
-        older = content[index + 1];
+      if (index < scopedContent.length - 1) {
+        older = scopedContent[index + 1];
       } else if (page + 1 < totalPages) {
         const nextParams = new URLSearchParams();
         nextParams.set("page", String(page + 1));
@@ -246,14 +262,24 @@ export async function getAdjacentBoards(
           throw new Error(errorText || `서버 오류 (${nextRes.status})`);
         }
 
-        const nextData = normalizeBoardsPageResponse(await nextRes.json());
-        older = nextData.content?.[0] ?? null;
+        const nextData = normalizeBoardsPageResponse(await nextRes.json(), category);
+        const nextContent = Array.isArray(nextData.content) ? nextData.content : [];
+        const nextScopedContent =
+          myIdentities.length > 0
+            ? nextContent.filter((post) =>
+                isMinePost(post as unknown as Record<string, unknown>, myIdentities),
+              )
+            : nextContent;
+        older = nextScopedContent?.[0] ?? null;
       }
 
       return { newer: newer ?? null, older: older ?? null };
     }
 
-    previousPageLast = content.length > 0 ? content[content.length - 1] : previousPageLast;
+    previousPageLast =
+      scopedContent.length > 0
+        ? scopedContent[scopedContent.length - 1]
+        : previousPageLast;
     page += 1;
   }
 

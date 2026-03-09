@@ -23,6 +23,7 @@ export function PostCard({ post, href }: PostCardProps) {
   const categoryLabel = categoryToLabel((post.category as BoardCategory) ?? "ETC");
   const excerpt =
     content.length > 120 ? content.slice(0, 120) + "…" : content;
+  const isUpdated = post.updatedAt > post.createdAt;
 
   return (
     <Link href={href ?? `/dashboard/${post.id}`} className="block">
@@ -46,12 +47,19 @@ export function PostCard({ post, href }: PostCardProps) {
         <p className="mb-3 flex-1 text-sm leading-relaxed text-slate-600 transition-colors duration-200 group-hover:text-amber-800/80">
           {excerpt}
         </p>
-        <time
-          className="text-xs text-slate-500 transition-colors duration-200 group-hover:text-amber-700/70"
-          dateTime={new Date(post.createdAt).toISOString()}
-        >
-          {formatDate(post.createdAt)}
-        </time>
+        <div className="flex items-center gap-2">
+          <time
+            className="text-xs text-slate-500 transition-colors duration-200 group-hover:text-amber-700/70"
+            dateTime={new Date(post.createdAt).toISOString()}
+          >
+            {formatDate(post.createdAt)}
+          </time>
+          {isUpdated && (
+            <span className="rounded-full border border-yellow-200 bg-yellow-50 px-2 py-0.5 text-[10px] font-semibold text-yellow-700">
+              수정됨
+            </span>
+          )}
+        </div>
       </article>
     </Link>
   );
