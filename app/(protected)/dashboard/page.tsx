@@ -8,15 +8,32 @@ import { PostCardGridInfinite } from "@widgets/post/PostCardGridInfinite";
 import type { BoardCategory } from "@entities/post/model/category";
 import { useBoardCount } from "@/src/features/auth/api/useBoard";
 
+function normalizeCategoryQuery(value: string | null): BoardCategory | "ALL" {
+  const raw = String(value ?? "")
+    .trim()
+    .toUpperCase();
+  if (raw === "NOTICE") return "NOTICE";
+  if (raw === "FREE") return "FREE";
+  if (raw === "QNA") return "QNA";
+  if (raw === "ETC") return "ETC";
+  return "ALL";
+}
+
 export default function DashboardPage() {
   const searchParams = useSearchParams();
+  const initialCategory = normalizeCategoryQuery(searchParams.get("category"));
+  const initialSortOrder = searchParams.get("sort") === "oldest" ? "oldest" : "latest";
   const [selectedCategory, setSelectedCategory] = useState<
     BoardCategory | "ALL"
-  >("ALL");
-  const [sortOrder, setSortOrder] = useState<"latest" | "oldest">("latest");
+  >(initialCategory);
+  const [sortOrder, setSortOrder] = useState<"latest" | "oldest">(initialSortOrder);
 
   useEffect(() => {
     const sort = searchParams.get("sort");
+    const category = searchParams.get("category");
+
+    setSelectedCategory(normalizeCategoryQuery(category));
+
     if (sort === "oldest") {
       setSortOrder("oldest");
       return;

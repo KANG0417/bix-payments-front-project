@@ -3,6 +3,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
 import type { BoardCategory } from "@entities/post/model/category";
 import { useAuthStore } from "@entities/user/model/auth-store";
 import { normalizeCategory } from "@entities/post/model/category";
+import { refreshAccessToken } from "@features/auth/api/refresh";
 export type { BoardCategory };
 
 export interface CreateBoardRequest {
@@ -63,13 +64,38 @@ function getAccessToken() {
   }
 }
 
+function getRefreshToken() {
+  const refreshTokenFromStore = normalizeAccessToken(
+    useAuthStore.getState().refreshToken,
+  );
+  if (refreshTokenFromStore) return refreshTokenFromStore;
+
+  if (typeof window === "undefined") return null;
+  try {
+    const persisted = window.localStorage.getItem("blog-auth");
+    if (!persisted) return null;
+    const parsed = JSON.parse(persisted) as {
+      state?: { refreshToken?: string | null };
+    };
+    return normalizeAccessToken(parsed.state?.refreshToken ?? null);
+  } catch {
+    return null;
+  }
+}
+
 async function authFetch(url: string, init: RequestInit = {}) {
-  const accessToken = normalizeAccessToken(getAccessToken());
+  let accessToken = normalizeAccessToken(getAccessToken());
+  const refreshToken = normalizeAccessToken(getRefreshToken());
+
+  if (!accessToken && refreshToken) {
+    accessToken = await refreshAccessToken();
+  }
+
   if (!accessToken) {
     throw new Error("로그인이 필요합니다. 다시 로그인해주세요.");
   }
 
-  const res = await fetch(url, {
+  let res = await fetch(url, {
     ...init,
     headers: {
       ...(init.headers ?? {}),
@@ -77,8 +103,20 @@ async function authFetch(url: string, init: RequestInit = {}) {
     },
   });
 
+  if (res.status === 401 && refreshToken) {
+    const renewedAccessToken = await refreshAccessToken();
+    res = await fetch(url, {
+      ...init,
+      headers: {
+        ...(init.headers ?? {}),
+        Authorization: `Bearer ${renewedAccessToken}`,
+      },
+    });
+  }
+
   if (res.status === 401) {
     useAuthStore.getState().setSessionExpired(true);
+    throw new Error("세션이 만료되었습니다. 다시 로그인해주세요.");
   }
 
   return res;
@@ -154,6 +192,7 @@ export async function getBoardDetail(id: number): Promise<BoardResponse> {
 export async function getAdjacentBoards(
   id: number,
   sort: "latest" | "oldest" = "latest",
+  category?: BoardCategory | "ALL",
 ): Promise<{ newer: BoardResponse | null; older: BoardResponse | null }> {
   const size = 20;
   let page = 0;
@@ -165,6 +204,9 @@ export async function getAdjacentBoards(
     params.set("page", String(page));
     params.set("size", String(size));
     params.set("sort", `createdAt,${sort === "oldest" ? "asc" : "desc"}`);
+    if (category && category !== "ALL") {
+      params.set("category", category);
+    }
 
     const res = await authFetch(`${BASE_URL}/boards?${params.toString()}`, {
       method: "GET",
@@ -191,6 +233,9 @@ export async function getAdjacentBoards(
         nextParams.set("page", String(page + 1));
         nextParams.set("size", String(size));
         nextParams.set("sort", `createdAt,${sort === "oldest" ? "asc" : "desc"}`);
+        if (category && category !== "ALL") {
+          nextParams.set("category", category);
+        }
 
         const nextRes = await authFetch(`${BASE_URL}/boards?${nextParams.toString()}`, {
           method: "GET",

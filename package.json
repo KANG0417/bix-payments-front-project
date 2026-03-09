@@ -33,6 +33,7 @@
   ],
   "trustedDependencies": [
     "sharp",
-    "unrs-resolver"
+    "unrs-resolver",
+    "bix-payments-front-project"
   ]
 }

@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { categoryToLabel } from "@entities/post/model/category";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useMutation, useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
+import { categoryToLabel, type BoardCategory } from "@entities/post/model/category";
 import { useAuthStore } from "@entities/user/model/auth-store";
 import { ROUTES } from "@shared/config/routes";
 import { deleteBoard, getAdjacentBoards, getBoardDetail } from "@features/post/api/board";
 import { getMyIdentityCandidates, isMinePost } from "@features/post/model/ownership";
+import type { BoardResponse } from "@features/post/api/board";
 
 interface AttachmentItem {
   name: string;
@@ -118,15 +119,82 @@ function formatSize(bytes?: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
+function normalizeSelectedCategory(value: string | null): BoardCategory {
+  const raw = String(value ?? "")
+    .trim()
+    .toUpperCase();
+  if (raw === "NOTICE") return "NOTICE";
+  if (raw === "FREE") return "FREE";
+  if (raw === "QNA") return "QNA";
+  if (raw === "ETC") return "ETC";
+  return "ALL";
+}
+
+function normalizeSortOrder(value: string | null): "latest" | "oldest" {
+  return value === "oldest" ? "oldest" : "latest";
+}
+
+function getAdjacentFromInfiniteCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  boardId: number,
+  sortOrder: "latest" | "oldest",
+  category: BoardCategory,
+) {
+  const queries = queryClient.getQueriesData({
+    queryKey: ["boards", "infinite"],
+  });
+
+  const allBoards: BoardResponse[] = [];
+
+  for (const [queryKey, queryData] of queries) {
+    const key = queryKey as QueryKey;
+    const categoryInKey = key[2];
+    const sortInKey = key[4];
+    const expectedCategoryInKey = category === "ALL" ? undefined : category;
+
+    if (sortInKey !== sortOrder) continue;
+    if (categoryInKey !== expectedCategoryInKey) continue;
+
+    const data = queryData as
+      | { pages?: Array<{ content?: BoardResponse[] }> }
+      | undefined;
+    const pages = Array.isArray(data?.pages) ? data.pages : [];
+
+    for (const page of pages) {
+      if (!Array.isArray(page?.content)) continue;
+      allBoards.push(...page.content);
+    }
+  }
+
+  if (allBoards.length === 0) return null;
+
+  const deduped = allBoards.filter((post, index, array) => {
+    return (
+      index === array.findIndex((candidate) => Number(candidate.id) === Number(post.id))
+    );
+  });
+
+  const targetIndex = deduped.findIndex((post) => Number(post.id) === Number(boardId));
+  if (targetIndex < 0) return null;
+
+  return {
+    newer: targetIndex > 0 ? deduped[targetIndex - 1] : null,
+    older: targetIndex < deduped.length - 1 ? deduped[targetIndex + 1] : null,
+  };
+}
+
 export default function DashboardPostDetailPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const boardId = Number(params.id);
   const me = useAuthStore((s) => s.user);
   const accessToken = useAuthStore((s) => s.accessToken);
   const myIdentities = getMyIdentityCandidates(accessToken, me);
   const [downloadingUrl, setDownloadingUrl] = useState<string | null>(null);
+  const selectedCategory = normalizeSelectedCategory(searchParams.get("category"));
+  const sortOrder = normalizeSortOrder(searchParams.get("sort"));
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["board", boardId, ...myIdentities],
@@ -134,19 +202,60 @@ export default function DashboardPostDetailPage() {
     enabled: Number.isFinite(boardId),
     select: (post) => ({
       ...post,
-      canManage: isMinePost(post as Record<string, unknown>, myIdentities),
+      canManage: isMinePost(post as unknown as Record<string, unknown>, myIdentities),
     }),
   });
 
-  const { data: adjacent } = useQuery({
-    queryKey: ["board-adjacent", boardId],
-    queryFn: () => getAdjacentBoards(boardId, "latest"),
-    enabled: Number.isFinite(boardId) && boardId > 0,
+  const categoryFromPost = normalizeSelectedCategory(String(data?.category ?? ""));
+  const effectiveCategory = selectedCategory === "ALL" ? categoryFromPost : selectedCategory;
+
+  const buildDetailHref = (id: number | string) =>
+    `${ROUTES.DASHBOARD}/${id}?category=${effectiveCategory}&sort=${sortOrder}`;
+
+  const { data: adjacent, isFetching: isAdjacentFetching } = useQuery({
+    queryKey: ["board-adjacent", boardId, effectiveCategory, sortOrder],
+    queryFn: async () => {
+      const cached = getAdjacentFromInfiniteCache(
+        queryClient,
+        boardId,
+        sortOrder,
+        effectiveCategory,
+      );
+      if (cached) return cached;
+      return getAdjacentBoards(boardId, sortOrder, effectiveCategory);
+    },
+    enabled:
+      Number.isFinite(boardId) &&
+      boardId > 0 &&
+      (selectedCategory !== "ALL" || !!data),
     retry: 0,
   });
 
-  const nextData = adjacent?.newer ?? null;
-  const prevData = adjacent?.older ?? null;
+  // 목록 정렬 기준에 따라 "이전/다음" 의미를 맞춘다.
+  // - latest: 이전=newer, 다음=older
+  // - oldest: 이전=older, 다음=newer
+  const rawNextData =
+    sortOrder === "latest" ? (adjacent?.older ?? null) : (adjacent?.newer ?? null);
+  const rawPrevData =
+    sortOrder === "latest" ? (adjacent?.newer ?? null) : (adjacent?.older ?? null);
+
+  const belongsToEffectiveCategory = (post: BoardResponse | null) => {
+    if (!post) return false;
+    if (effectiveCategory === "ALL") return true;
+    const category = normalizeSelectedCategory(
+      String(post.boardCategory ?? post.category ?? ""),
+    );
+    return category === effectiveCategory;
+  };
+
+  const nextData =
+    !isAdjacentFetching && belongsToEffectiveCategory(rawPrevData)
+      ? rawPrevData
+      : null;
+  const prevData =
+    !isAdjacentFetching && belongsToEffectiveCategory(rawNextData)
+      ? rawNextData
+      : null;
 
   const { mutate: removeBoard, isPending: isDeleting } = useMutation({
     mutationFn: () => deleteBoard(boardId),
@@ -314,7 +423,7 @@ export default function DashboardPostDetailPage() {
                 <div className="flex items-center justify-start">
                   {nextData ? (
                     <Link
-                      href={`${ROUTES.DASHBOARD}/${nextData.id}`}
+                      href={buildDetailHref(nextData.id)}
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-left transition hover:bg-slate-50"
                     >
                       <p className="text-xs font-semibold text-slate-400">다음 게시글</p>
@@ -334,7 +443,7 @@ export default function DashboardPostDetailPage() {
                 </div>
                 <div className="flex items-center justify-center">
                   <Link
-                    href={ROUTES.DASHBOARD}
+                    href={`${ROUTES.DASHBOARD}?category=${effectiveCategory}&sort=${sortOrder}`}
                     className="group inline-flex h-9 w-9 items-center justify-center gap-0 overflow-hidden rounded-xl border border-slate-200 bg-white px-0 transition-all duration-300 hover:w-28 hover:justify-start hover:gap-2 hover:bg-slate-50 hover:px-2"
                   >
                     <span className="flex h-5 w-5 flex-col justify-center gap-0.5">
@@ -350,7 +459,7 @@ export default function DashboardPostDetailPage() {
                 <div className="flex items-center justify-end">
                   {prevData ? (
                     <Link
-                      href={`${ROUTES.DASHBOARD}/${prevData.id}`}
+                      href={buildDetailHref(prevData.id)}
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-left transition hover:bg-slate-50"
                     >
                       <p className="text-xs font-semibold text-slate-400">이전 게시글</p>

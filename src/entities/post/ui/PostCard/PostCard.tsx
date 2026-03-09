@@ -6,6 +6,7 @@ import { categoryToLabel, type BoardCategory } from "@entities/post/model/catego
 
 interface PostCardProps {
   post: Post;
+  href?: string;
 }
 
 function formatDate(ts: number) {
@@ -16,7 +17,7 @@ function formatDate(ts: number) {
   });
 }
 
-export function PostCard({ post }: PostCardProps) {
+export function PostCard({ post, href }: PostCardProps) {
   const content = typeof post.content === "string" ? post.content : "";
   const tags = Array.isArray(post.tags) ? post.tags : [];
   const categoryLabel = categoryToLabel((post.category as BoardCategory) ?? "ETC");
@@ -24,7 +25,7 @@ export function PostCard({ post }: PostCardProps) {
     content.length > 120 ? content.slice(0, 120) + "…" : content;
 
   return (
-    <Link href={`/dashboard/${post.id}`} className="block">
+    <Link href={href ?? `/dashboard/${post.id}`} className="block">
       <article className="group flex cursor-pointer flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:scale-[1.03] hover:border-amber-200 hover:bg-amber-50 hover:shadow-md focus-visible:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300">
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 transition-colors duration-200 group-hover:bg-amber-100 group-hover:text-amber-700">

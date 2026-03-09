@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { PostCard } from "@entities/post/ui/PostCard";
 import type { BoardCategory } from "@entities/post/model/category";
 import { hasToken, useInfiniteBoards } from "@/src/features/auth/api/useBoard";
 import { useAuthStore } from "@entities/user/model/auth-store";
 import { ROUTES } from "@shared/config/routes";
+import { refreshAccessToken } from "@features/auth/api/refresh";
 
 interface PostCardGridInfiniteProps {
   selectedCategory: BoardCategory | "ALL";
@@ -55,12 +56,18 @@ export function PostCardGridInfinite({
   sortOrder,
 }: PostCardGridInfiniteProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const wasIntersectingRef = useRef(false);
   const rawAccessToken = useAuthStore((s) => s.accessToken);
+  const rawRefreshToken = useAuthStore((s) => s.refreshToken);
   const sessionExpired = useAuthStore((s) => s.sessionExpired);
   const isHydrated = useAuthStore((s) => s.isHydrated);
-  const hasUsableToken = hasToken(
+  const setSessionExpired = useAuthStore((s) => s.setSessionExpired);
+  const [isRecoveringSession, setIsRecoveringSession] = useState(false);
+  const [refreshFailed, setRefreshFailed] = useState(false);
+  const hasAccessToken = hasToken(
     rawAccessToken?.replace(/^Bearer\s+/i, "").trim() ?? null,
+  );
+  const hasRefreshToken = hasToken(
+    rawRefreshToken?.replace(/^Bearer\s+/i, "").trim() ?? null,
   );
 
   // ✨ 핵심 수정: API 파라미터에서 "ALL"은 제외(undefined) 처리
@@ -98,6 +105,44 @@ export function PostCardGridInfinite({
   );
 
   useEffect(() => {
+    if (!isHydrated) return;
+    if (!hasRefreshToken) return;
+    if (hasAccessToken && !sessionExpired) return;
+    if (isRecoveringSession) return;
+    if (refreshFailed) return;
+
+    let mounted = true;
+    setIsRecoveringSession(true);
+    setRefreshFailed(false);
+
+    refreshAccessToken()
+      .then(() => {
+        if (!mounted) return;
+        setSessionExpired(false);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setRefreshFailed(true);
+      })
+      .finally(() => {
+        if (!mounted) return;
+        setIsRecoveringSession(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [
+    isHydrated,
+    hasAccessToken,
+    hasRefreshToken,
+    sessionExpired,
+    isRecoveringSession,
+    refreshFailed,
+    setSessionExpired,
+  ]);
+
+  useEffect(() => {
     if (!hasNextPage || isFetchingNextPage) return;
     const el = sentinelRef.current;
     if (!el) return;
@@ -105,26 +150,49 @@ export function PostCardGridInfinite({
     const observer = new IntersectionObserver(
       (entries) => {
         const isIntersecting = !!entries[0]?.isIntersecting;
-        if (
-          isIntersecting &&
-          !wasIntersectingRef.current &&
-          hasNextPage &&
-          !isFetchingNextPage
-        ) {
+        if (isIntersecting && hasNextPage && !isFetchingNextPage) {
           fetchNextPage();
         }
-        wasIntersectingRef.current = isIntersecting;
       },
-      { rootMargin: "80px", threshold: 0.1 },
+      { rootMargin: "200px 0px", threshold: 0 },
     );
     observer.observe(el);
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  if (isHydrated && (!hasUsableToken || sessionExpired)) {
+  useEffect(() => {
+    if (!hasNextPage || isFetchingNextPage || isLoading) return;
+    if (typeof window === "undefined") return;
+
+    const doc = document.documentElement;
+    const hasScrollableSpace = doc.scrollHeight > window.innerHeight + 80;
+    if (!hasScrollableSpace) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, isLoading, fetchNextPage, sortedPosts.length]);
+
+  if (isHydrated && !hasRefreshToken && !hasAccessToken) {
     return (
       <section className="rounded-xl border border-dashed border-slate-300 py-12 text-center text-slate-500">
-        <p className="mb-3">세션이 만료되었거나 인증 정보가 없어요.</p>
+        <p className="mb-3">인증 정보가 없어요.</p>
+        <Link
+          href={ROUTES.LOGIN}
+          className="inline-flex rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+        >
+          로그인하러 가기
+        </Link>
+      </section>
+    );
+  }
+
+  if (isHydrated && (isRecoveringSession || (!hasAccessToken && hasRefreshToken))) {
+    return <PostCardGridSkeleton />;
+  }
+
+  if (isHydrated && refreshFailed && sessionExpired && !hasAccessToken) {
+    return (
+      <section className="rounded-xl border border-dashed border-slate-300 py-12 text-center text-slate-500">
+        <p className="mb-3">세션이 만료되어 재접속에 실패했어요.</p>
         <Link
           href={ROUTES.LOGIN}
           className="inline-flex rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
@@ -143,7 +211,11 @@ export function PostCardGridInfinite({
     <>
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {sortedPosts.map((post) => (
-          <PostCard key={post.id} post={post} />
+          <PostCard
+            key={post.id}
+            post={post}
+            href={`${ROUTES.DASHBOARD}/${post.id}?category=${selectedCategory}&sort=${sortOrder}`}
+          />
         ))}
         {isFetchingNextPage &&
           Array.from({ length: 5 }, (_, idx) => (
@@ -158,6 +230,18 @@ export function PostCardGridInfinite({
       )}
 
       <div ref={sentinelRef} className="h-4 w-full" />
+
+      {hasNextPage && !isFetchingNextPage && (
+        <div className="mt-4 flex justify-center">
+          <button
+            type="button"
+            onClick={() => fetchNextPage()}
+            className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+          >
+            게시글 더 보기
+          </button>
+        </div>
+      )}
 
     </>
   );

@@ -35,6 +35,8 @@ const decodeJwt = (token: string) => {
 
 const normalizeAccessToken = (token: string) =>
   token.replace(/^Bearer\s+/i, "").trim();
+const normalizeRefreshToken = (token: string) =>
+  token.replace(/^Bearer\s+/i, "").trim();
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -50,6 +52,7 @@ export const useAuthStore = create<AuthState>()(
 
       setTokens: (accessToken, refreshToken) => {
         const normalizedAccessToken = normalizeAccessToken(accessToken);
+        const normalizedRefreshToken = normalizeRefreshToken(refreshToken);
         const payload = decodeJwt(normalizedAccessToken);
         const user: AuthUser = {
           id: payload?.username ?? "",
@@ -58,7 +61,7 @@ export const useAuthStore = create<AuthState>()(
         };
         set({
           accessToken: normalizedAccessToken,
-          refreshToken,
+          refreshToken: normalizedRefreshToken,
           user,
           sessionExpired: false,
         });
