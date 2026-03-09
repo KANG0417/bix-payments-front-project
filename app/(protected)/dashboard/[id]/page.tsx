@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { categoryToLabel, type BoardCategory } from "@entities/post/model/category";
+import { isLocallyEditedPost } from "@entities/post/model/edited-posts";
 import { useAuthStore } from "@entities/user/model/auth-store";
 import { ROUTES } from "@shared/config/routes";
 import { deleteBoard, getAdjacentBoards, getBoardDetail } from "@features/post/api/board";
@@ -228,6 +229,26 @@ function getManagePermissionFromBoardCaches(
   return false;
 }
 
+function isEditedPostRecord(
+  post: Record<string, unknown>,
+  postId?: number,
+) {
+  if (Number.isFinite(postId) && isLocallyEditedPost(Number(postId))) return true;
+
+  const createdRaw = String(post.createdAt ?? "");
+  const updatedRaw = String(post.updatedAt ?? post.modifiedAt ?? "");
+  if (!createdRaw || !updatedRaw) return false;
+  if (createdRaw !== updatedRaw) return true;
+
+  const createdTs = new Date(createdRaw).getTime();
+  const updatedTs = new Date(updatedRaw).getTime();
+  return (
+    Number.isFinite(createdTs) &&
+    Number.isFinite(updatedTs) &&
+    updatedTs > createdTs
+  );
+}
+
 export default function DashboardPostDetailPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -339,10 +360,10 @@ export default function DashboardPostDetailPage() {
 
   const canManagePost = !!data.canManage || canManageFromCache;
   const attachments = extractAttachments(data as Record<string, unknown>);
-  const isUpdatedPost =
-    Number.isFinite(new Date(data.updatedAt).getTime()) &&
-    Number.isFinite(new Date(data.createdAt).getTime()) &&
-    new Date(data.updatedAt).getTime() > new Date(data.createdAt).getTime();
+  const isUpdatedPost = isEditedPostRecord(
+    data as unknown as Record<string, unknown>,
+    boardId,
+  );
 
   const handleDownload = async (file: AttachmentItem) => {
     const normalizedToken = normalizeAccessToken(accessToken);

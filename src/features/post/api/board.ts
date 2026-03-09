@@ -1,4 +1,6 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
+const BASE_URL = (
+  process.env.NEXT_PUBLIC_API_BASE_URL || "https://front-mission.bigs.or.kr"
+).replace(/\/$/, "");
 
 import type { BoardCategory } from "@entities/post/model/category";
 import { useAuthStore } from "@entities/user/model/auth-store";
@@ -126,7 +128,7 @@ async function authFetch(url: string, init: RequestInit = {}) {
 function normalizeBoardResponse(raw: unknown): BoardResponse {
   const item = (raw ?? {}) as Record<string, unknown>;
   return {
-    ...(item as BoardResponse),
+    ...(item as unknown as BoardResponse),
     category: normalizeCategory(item.category ?? item.boardCategory),
     boardCategory: String(item.boardCategory ?? item.category ?? "ETC"),
   };
@@ -144,7 +146,7 @@ function normalizeBoardsPageResponse(
       ? normalizedContent.filter((item) => item.category === expectedCategory)
       : normalizedContent;
   return {
-    ...(page as BoardsPageResponse),
+    ...(page as unknown as BoardsPageResponse),
     content: filteredContent,
     totalPages: Number(page.totalPages ?? 1),
   };
@@ -291,7 +293,7 @@ export async function updateBoard(
   id: number,
   request: UpdateBoardRequest,
   file?: File,
-): Promise<BoardResponse> {
+): Promise<void> {
   const formData = new FormData();
   formData.append(
     "request",
@@ -302,7 +304,7 @@ export async function updateBoard(
   }
 
   const res = await authFetch(`${BASE_URL}/boards/${id}`, {
-    method: "PUT",
+    method: "PATCH",
     body: formData,
   });
 
@@ -310,8 +312,6 @@ export async function updateBoard(
     const errorText = await res.text();
     throw new Error(errorText || `서버 오류 (${res.status})`);
   }
-
-  return normalizeBoardResponse(await res.json());
 }
 
 /** 게시글 삭제 */

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { PostCard } from "@entities/post/ui/PostCard";
 import type { BoardCategory } from "@entities/post/model/category";
+import { isLocallyEditedPost } from "@entities/post/model/edited-posts";
 import { hasToken, useInfiniteBoards } from "@/src/features/auth/api/useBoard";
 import { useAuthStore } from "@entities/user/model/auth-store";
 import { ROUTES } from "@shared/config/routes";
@@ -82,16 +83,30 @@ export function PostCardGridInfinite({
     sort: sortOrder,
   });
   const items = data?.pages.flatMap((pageData) => pageData.content) ?? [];
-  const posts = items.map((item) => ({
-    id: String(item.id),
-    authorId: "",
-    title: item.title,
-    content: item.content,
-    category: item.category,
-    tags: [],
-    createdAt: new Date(item.createdAt).getTime(),
-    updatedAt: new Date(item.updatedAt).getTime(),
-  }));
+  const posts = items.map((item) => {
+    const createdRaw = String(item.createdAt ?? "");
+    const updatedRaw = String(item.updatedAt ?? "");
+    const createdAt = new Date(createdRaw).getTime();
+    const updatedAt = new Date(updatedRaw).getTime();
+    const isEdited =
+      isLocallyEditedPost(Number(item.id)) ||
+      (createdRaw.length > 0 && updatedRaw.length > 0 && createdRaw !== updatedRaw) ||
+      (Number.isFinite(createdAt) &&
+        Number.isFinite(updatedAt) &&
+        updatedAt > createdAt);
+
+    return {
+      id: String(item.id),
+      authorId: "",
+      title: item.title,
+      content: item.content,
+      category: item.category,
+      tags: [],
+      createdAt,
+      updatedAt,
+      isEdited,
+    };
+  });
   const filteredPosts =
     selectedCategory === "ALL"
       ? posts

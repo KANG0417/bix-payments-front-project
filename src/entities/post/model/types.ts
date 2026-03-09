@@ -7,6 +7,7 @@ export interface Post {
   tags: string[];
   createdAt: number;
   updatedAt: number;
+  isEdited?: boolean;
 }
 
 export const DEFAULT_CATEGORIES = [

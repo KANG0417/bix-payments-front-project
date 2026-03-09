@@ -11,6 +11,7 @@ import {
   categoryToLabel,
   labelToCategory,
 } from "@entities/post/model/category";
+import { markLocallyEditedPost } from "@entities/post/model/edited-posts";
 import { getBoardDetail, updateBoard } from "@features/post/api/board";
 import { useCreateBoard } from "@features/auth/api/useCreateBoard";
 
@@ -188,6 +189,7 @@ export function WritePostForm() {
         variables.file,
       ),
     onSuccess: async (_, variables) => {
+      markLocallyEditedPost(variables.id);
       await queryClient.invalidateQueries({ queryKey: ["boards"] });
       await queryClient.invalidateQueries({ queryKey: ["board", variables.id] });
       router.push(`${ROUTES.DASHBOARD}/${variables.id}`);

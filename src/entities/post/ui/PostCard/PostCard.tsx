@@ -23,7 +23,7 @@ export function PostCard({ post, href }: PostCardProps) {
   const categoryLabel = categoryToLabel((post.category as BoardCategory) ?? "ETC");
   const excerpt =
     content.length > 120 ? content.slice(0, 120) + "…" : content;
-  const isUpdated = post.updatedAt > post.createdAt;
+  const isUpdated = post.isEdited ?? post.updatedAt > post.createdAt;
 
   return (
     <Link href={href ?? `/dashboard/${post.id}`} className="block">
