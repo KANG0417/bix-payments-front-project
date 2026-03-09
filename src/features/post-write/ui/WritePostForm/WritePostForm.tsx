@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ROUTES } from "@shared/config/routes";
-import { CancelConfirmModal } from "./CancelConfirmModal";
+import { ConfirmModal } from "@shared/ui/Modal";
 import {
   WRITE_CATEGORIES,
   categoryToLabel,
@@ -557,9 +557,13 @@ export function WritePostForm() {
 
       {/* 취소 확인 모달 */}
       {showCancelModal && (
-        <CancelConfirmModal
+        <ConfirmModal
+          open={showCancelModal}
+          onClose={() => setShowCancelModal(false)}
           onConfirm={() => router.push(ROUTES.DASHBOARD)}
-          onCancel={() => setShowCancelModal(false)}
+          title="작성을 취소할까요?"
+          description="지금까지 입력한 내용이 모두 사라져요."
+          confirmButtonText="확인"
         />
       )}
     </>

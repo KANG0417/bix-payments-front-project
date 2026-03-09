@@ -8,6 +8,7 @@ import { categoryToLabel, type BoardCategory } from "@entities/post/model/catego
 import { isLocallyEditedPost } from "@entities/post/model/edited-posts";
 import { useAuthStore } from "@entities/user/model/auth-store";
 import { ROUTES } from "@shared/config/routes";
+import { ConfirmModal } from "@shared/ui/Modal";
 import { deleteBoard, getAdjacentBoards, getBoardDetail } from "@features/post/api/board";
 import { getMyIdentityCandidates, isMinePost } from "@features/post/model/ownership";
 import type { BoardResponse } from "@features/post/api/board";
@@ -631,45 +632,18 @@ export default function DashboardPostDetailPage() {
         </article>
       </div>
 
-      {showDeleteConfirm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4 backdrop-blur-sm"
-          onClick={() => setShowDeleteConfirm(false)}
-        >
-          <article
-            className="mx-4 w-full max-w-sm rounded-3xl border border-pink-100 bg-white p-8 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <header className="mb-4 text-center">
-              <p className="mb-2 text-3xl">🌸</p>
-              <h2 className="text-lg font-bold text-slate-700">게시글을 삭제할까요?</h2>
-              <p className="mt-2 text-sm font-bold text-[#E72566]">
-                지워지면 복구할 수 없습니다.
-              </p>
-            </header>
-            <footer className="mt-6 flex justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirm(false)}
-                className="cursor-pointer flex-1 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-500 transition-all hover:bg-slate-50"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                disabled={isDeleting}
-                onClick={() => {
-                  removeBoard();
-                  setShowDeleteConfirm(false);
-                }}
-                className="cursor-pointer flex-1 rounded-full bg-amber-100 px-4 py-2.5 text-sm font-bold text-amber-600 transition-all hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                삭제하기
-              </button>
-            </footer>
-          </article>
-        </div>
-      )}
+      <ConfirmModal
+        open={showDeleteConfirm}
+        isConfirmDisabled={isDeleting}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => {
+          removeBoard();
+          setShowDeleteConfirm(false);
+        }}
+        title="게시글을 삭제할까요?"
+        description="지워지면 복구할 수 없습니다."
+        confirmButtonText="삭제하기"
+      />
 
     </section>
   );

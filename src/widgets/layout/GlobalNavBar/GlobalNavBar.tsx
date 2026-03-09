@@ -22,7 +22,7 @@ export function GlobalNavBar() {
     setPanelOpen(false);
     setDropdownOpen(false);
     logout();
-    router.replace(ROUTES.LOGIN);
+    router.replace(ROUTES.SIGNIN);
   };
 
   useEffect(() => {

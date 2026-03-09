@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { ROUTES } from "@shared/config/routes";
 import { signup, SignupApiError } from "../../api/signup";
-import { animatedStyles, globalStyles } from "../LoginForm/LoginForm.styles";
+import { animatedStyles, globalStyles } from "../SigninForm/SigninForm.styles";
 
 export function SignupForm() {
   const router = useRouter();
@@ -65,7 +65,7 @@ export function SignupForm() {
   const signupMutation = useMutation({
     mutationFn: signup,
     onSuccess: () => {
-      router.push(ROUTES.LOGIN);
+      router.push(ROUTES.SIGNIN);
     },
     onError: (err) => {
       if (err instanceof SignupApiError) {
@@ -438,7 +438,7 @@ export function SignupForm() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => router.push(ROUTES.LOGIN)}
+                  onClick={() => router.push(ROUTES.SIGNIN)}
                   disabled={signupMutation.isPending}
                   className="w-full cursor-pointer rounded-xl border-[1.5px] border-[#f9c6d0] bg-[rgba(244,143,177,0.08)] px-3.5 py-[14px] text-base font-semibold text-[#b06080] transition-all disabled:cursor-not-allowed disabled:opacity-60"
                 >

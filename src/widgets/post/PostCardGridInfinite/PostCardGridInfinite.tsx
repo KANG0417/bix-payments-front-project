@@ -191,7 +191,7 @@ export function PostCardGridInfinite({
       <section className="rounded-xl border border-dashed border-slate-300 py-12 text-center text-slate-500">
         <p className="mb-3">인증 정보가 없어요.</p>
         <Link
-          href={ROUTES.LOGIN}
+          href={ROUTES.SIGNIN}
           className="inline-flex rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
         >
           로그인하러 가기
@@ -209,7 +209,7 @@ export function PostCardGridInfinite({
       <section className="rounded-xl border border-dashed border-slate-300 py-12 text-center text-slate-500">
         <p className="mb-3">세션이 만료되어 재접속에 실패했어요.</p>
         <Link
-          href={ROUTES.LOGIN}
+          href={ROUTES.SIGNIN}
           className="inline-flex rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
         >
           로그인하러 가기

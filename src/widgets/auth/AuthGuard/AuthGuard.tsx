@@ -10,7 +10,7 @@ interface AuthGuardProps {
 }
 
 /**
- * 로그인한 사용자만 자식 페이지를 보여주고, 비로그인 시 로그인 페이지로 리다이렉트
+ * 로그인한 사용자만 자식 페이지를 보여주고, 비로그인 시 로그인 페이지로 redirect
  */
 export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
@@ -20,7 +20,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   useEffect(() => {
     if (!isHydrated) return;
     if (user === null) {
-      router.replace(ROUTES.LOGIN);
+      router.replace(ROUTES.SIGNIN);
     }
   }, [isHydrated, user, router]);
 
