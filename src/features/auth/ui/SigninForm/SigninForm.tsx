@@ -1,16 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { disassemble, assemble } from "es-hangul";
 import { useAuthStore } from "@entities/user/model/auth-store";
 import { ROUTES } from "@shared/config/routes";
 import { signin } from "@features/auth/api/signin";
 import { animatedStyles, globalStyles } from "./SigninForm.styles";
-
-const TYPING_TEXT = "안녕하세요";
-const JAMOS = disassemble(TYPING_TEXT).split("");
+import { usePetals } from "../hooks/usePetals";
+import { useTypingText } from "../hooks/useTypingText";
 
 export function SigninForm() {
   const router = useRouter();
@@ -24,82 +22,8 @@ export function SigninForm() {
   const emailInputRef = useRef<HTMLInputElement>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
-  const [petals, setPetals] = useState<
-    Array<{
-      id: number;
-      x: number;
-      size: number;
-      duration: number;
-      delay: number;
-      rotate: number;
-      drift: number;
-      opacity: number;
-      color: string;
-    }>
-  >([]);
-
-  useEffect(() => {
-    const PETAL_COLORS = [
-      "#ffc8dd",
-      "#ffafcc",
-      "#f9c6d0",
-      "#fadadd",
-      "#fbb8c8",
-      "#f8d7da",
-      "#fce4ec",
-      "#f48fb1",
-    ];
-    setPetals(
-      Array.from({ length: 28 }, (_, i) => ({
-        id: i,
-        x: Math.random() * 100,
-        size: Math.random() * 14 + 8,
-        duration: Math.random() * 6 + 7,
-        delay: Math.random() * 12,
-        rotate: Math.random() * 360,
-        drift: (Math.random() - 0.5) * 180,
-        opacity: Math.random() * 0.45 + 0.4,
-        color: PETAL_COLORS[Math.floor(Math.random() * PETAL_COLORS.length)],
-      })),
-    );
-  }, []);
-
-  const [jamoIndex, setJamoIndex] = useState(0);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-
-  const displayed = jamoIndex === 0 ? "" : assemble(JAMOS.slice(0, jamoIndex));
-
-  useEffect(() => {
-    if (isPaused) return;
-    const timeout = setTimeout(
-      () => {
-        if (!isDeleting) {
-          if (jamoIndex < JAMOS.length) {
-            setJamoIndex((i) => i + 1);
-          } else {
-            setIsPaused(true);
-            setTimeout(() => {
-              setIsPaused(false);
-              setIsDeleting(true);
-            }, 1800);
-          }
-        } else {
-          if (jamoIndex > 0) {
-            setJamoIndex((i) => i - 1);
-          } else {
-            setIsPaused(true);
-            setTimeout(() => {
-              setIsPaused(false);
-              setIsDeleting(false);
-            }, 500);
-          }
-        }
-      },
-      isDeleting ? 60 : 120,
-    );
-    return () => clearTimeout(timeout);
-  }, [jamoIndex, isDeleting, isPaused]);
+  const petals = usePetals(28);
+  const displayed = useTypingText("안녕하세요");
 
   const {
     mutate: login,

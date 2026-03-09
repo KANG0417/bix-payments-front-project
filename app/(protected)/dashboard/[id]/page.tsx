@@ -558,7 +558,7 @@ export default function DashboardPostDetailPage() {
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-left transition hover:bg-slate-50"
                     >
                       <p className="text-xs font-semibold text-slate-400">다음 게시글</p>
-                      <p className="flex min-w-0 items-center font-semibold text-slate-700">
+                      <p className="flex w-full min-w-0 items-center overflow-hidden font-semibold text-slate-700">
                         <svg
                           aria-hidden="true"
                           viewBox="0 0 24 24"
@@ -571,7 +571,7 @@ export default function DashboardPostDetailPage() {
                         >
                           <path d="m15 18-6-6 6-6" />
                         </svg>
-                        <span className="block min-w-0 truncate">{nextData.title}</span>
+                        <span className="block min-w-0 flex-1 truncate">{nextData.title}</span>
                       </p>
                     </Link>
                   ) : null}
@@ -598,12 +598,12 @@ export default function DashboardPostDetailPage() {
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-left transition hover:bg-slate-50"
                     >
                       <p className="text-xs font-semibold text-slate-400">이전 게시글</p>
-                      <p className="flex min-w-0 items-center font-semibold text-slate-700">
-                        <span className="block min-w-0 truncate">{prevData.title}</span>
+                      <p className="flex w-full min-w-0 items-center overflow-hidden font-semibold text-slate-700">
+                        <span className="block min-w-0 flex-1 truncate">{prevData.title}</span>
                         <svg
                           aria-hidden="true"
                           viewBox="0 0 24 24"
-                          className="ml-2 h-4 w-4 shrink-0 text-slate-600"
+                          className="ml-auto h-4 w-4 shrink-0 text-slate-600"
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="2"

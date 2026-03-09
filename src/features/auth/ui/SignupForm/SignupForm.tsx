@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { ROUTES } from "@shared/config/routes";
 import { signup, SignupApiError } from "../../api/signup";
-import { animatedStyles, globalStyles } from "../SigninForm/SigninForm.styles";
+import { animatedStyles, globalStyles } from "./SignupForm.styles";
+import { usePetals } from "../hooks/usePetals";
 
 export function SignupForm() {
   const router = useRouter();
@@ -22,45 +23,7 @@ export function SignupForm() {
   const passwordInputRef = useRef<HTMLInputElement>(null);
   const confirmPasswordInputRef = useRef<HTMLInputElement>(null);
 
-  const [petals, setPetals] = useState<
-    Array<{
-      id: number;
-      x: number;
-      size: number;
-      duration: number;
-      delay: number;
-      rotate: number;
-      drift: number;
-      opacity: number;
-      color: string;
-    }>
-  >([]);
-
-  useEffect(() => {
-    const PETAL_COLORS = [
-      "#ffc8dd",
-      "#ffafcc",
-      "#f9c6d0",
-      "#fadadd",
-      "#fbb8c8",
-      "#f8d7da",
-      "#fce4ec",
-      "#f48fb1",
-    ];
-    setPetals(
-      Array.from({ length: 28 }, (_, i) => ({
-        id: i,
-        x: Math.random() * 100,
-        size: Math.random() * 14 + 8,
-        duration: Math.random() * 6 + 7,
-        delay: Math.random() * 12,
-        rotate: Math.random() * 360,
-        drift: (Math.random() - 0.5) * 180,
-        opacity: Math.random() * 0.45 + 0.4,
-        color: PETAL_COLORS[Math.floor(Math.random() * PETAL_COLORS.length)],
-      })),
-    );
-  }, []);
+  const petals = usePetals(28);
 
   const signupMutation = useMutation({
     mutationFn: signup,
