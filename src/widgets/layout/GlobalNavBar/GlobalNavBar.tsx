@@ -16,7 +16,7 @@ export function GlobalNavBar() {
   const [isMobileWrite, setIsMobileWrite] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownContainerRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = () => {
     setPanelOpen(false);
@@ -50,7 +50,10 @@ export function GlobalNavBar() {
   useEffect(() => {
     if (!dropdownOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (
+        dropdownContainerRef.current &&
+        !dropdownContainerRef.current.contains(e.target as Node)
+      ) {
         setDropdownOpen(false);
       }
     };
@@ -172,7 +175,7 @@ export function GlobalNavBar() {
             />
 
             {/* 프로필 패널 트리거 */}
-            <div style={{ position: "relative" }}>
+            <div ref={dropdownContainerRef} style={{ position: "relative" }}>
               <button
                 onClick={() => {
                   if (isMobileWrite) {
@@ -251,7 +254,6 @@ export function GlobalNavBar() {
 
               {!isMobileWrite && dropdownOpen && (
                 <div
-                  ref={dropdownRef}
                   style={{
                     position: "absolute",
                     right: 0,
