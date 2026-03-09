@@ -580,14 +580,14 @@ export default function DashboardPostDetailPage() {
                 <div className="flex items-center justify-center">
                   <Link
                     href={`${ROUTES.DASHBOARD}?category=${effectiveCategory}&sort=${sortOrder}`}
-                    className="group inline-flex h-9 w-9 items-center justify-center gap-0 overflow-hidden rounded-xl border border-slate-200 bg-white px-0 transition-all duration-300 hover:w-28 hover:justify-start hover:gap-2 hover:bg-slate-50 hover:px-2"
+                    className="group inline-flex h-9 w-9 items-center justify-center gap-0 overflow-hidden rounded-xl bg-[#fff9cc] px-0 transition-all duration-300 hover:w-28 hover:justify-start hover:gap-2 hover:bg-[#fff4b0] hover:px-2"
                   >
                     <span className="flex h-5 w-5 flex-col justify-center gap-0.5">
-                      <span className="h-0.5 w-4 rounded bg-slate-500" />
-                      <span className="h-0.5 w-4 rounded bg-slate-500" />
-                      <span className="h-0.5 w-4 rounded bg-slate-500" />
+                      <span className="h-0.5 w-4 rounded bg-amber-700" />
+                      <span className="h-0.5 w-4 rounded bg-amber-700" />
+                      <span className="h-0.5 w-4 rounded bg-amber-700" />
                     </span>
-                    <span className="max-w-0 -translate-x-1 whitespace-nowrap text-sm font-semibold text-slate-700 opacity-0 transition-all duration-300 ease-out group-hover:max-w-[72px] group-hover:translate-x-0 group-hover:opacity-100">
+                    <span className="max-w-0 -translate-x-1 whitespace-nowrap text-sm font-semibold text-amber-800 opacity-0 transition-all duration-300 ease-out group-hover:max-w-[72px] group-hover:translate-x-0 group-hover:opacity-100">
                       목록으로
                     </span>
                   </Link>

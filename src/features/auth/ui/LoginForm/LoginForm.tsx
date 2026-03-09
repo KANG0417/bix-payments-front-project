@@ -182,7 +182,7 @@ export function LoginForm() {
         />
       ))}
 
-      <main className="relative z-20 flex min-h-screen items-center justify-center px-4 py-12">
+      <main className="relative z-20 flex w-full items-center justify-center px-4 py-12">
         <article
           className="w-full max-w-[440px]"
           style={{ animation: "fadeUp 0.7s cubic-bezier(0.16,1,0.3,1) forwards" }}

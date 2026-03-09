@@ -1,5 +1,6 @@
 import { AuthGuard } from "@widgets/auth/AuthGuard";
 import { GlobalNavBar } from "@widgets/layout/GlobalNavBar";
+import { Footer } from "@widgets/layout/Footer";
 import { FloatingWriteAndScrollTop } from "@features/post-write/ui/FloatingWriteAndScrollTop";
 
 export default function ProtectedLayout({
@@ -9,9 +10,10 @@ export default function ProtectedLayout({
 }) {
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+      <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-slate-900">
         <GlobalNavBar />
-        <main className="mx-auto max-w-5xl px-4 pb-24 pt-6">{children}</main>
+        <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-24 pt-6">{children}</main>
+        <Footer />
         <FloatingWriteAndScrollTop />
       </div>
     </AuthGuard>

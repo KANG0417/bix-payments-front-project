@@ -125,7 +125,7 @@ export function SignupForm() {
         />
       ))}
 
-      <main className="relative z-20 flex min-h-screen items-center justify-center px-4 py-12">
+      <main className="relative z-20 flex w-full items-center justify-center px-4 py-12">
         <article
           className="w-full max-w-[460px]"
           style={{ animation: "fadeUp 0.7s cubic-bezier(0.16,1,0.3,1) forwards" }}
@@ -138,10 +138,10 @@ export function SignupForm() {
               CO.KR
             </figure>
             <h1 className="m-0 text-[clamp(26px,5vw,34px)] font-black text-[#7b2d52]">
-              회원가입 🌸
+              회원가입
             </h1>
             <p className="mt-2 text-[clamp(14px,3vw,16px)] text-[#b06080]">
-              봄처럼 가볍게 가입하고 글을 시작해보세요.
+            🌸 가입한 봄날에 글이나 한 번 써볼래요? 🌸
             </p>
           </header>
 
