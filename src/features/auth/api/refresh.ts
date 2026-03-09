@@ -7,11 +7,13 @@ interface RefreshResponse {
   accessToken?: string;
   refreshToken?: string;
   token?: string;
+  access_token?: string;
+  refresh_token?: string;
 }
 
 type RefreshAttempt = {
   headers?: Record<string, string>;
-  body?: { refreshToken: string };
+  body?: Record<string, string>;
 };
 
 function normalizeToken(token?: string | null) {
@@ -64,8 +66,19 @@ export async function refreshAccessToken(): Promise<string> {
         headers: { Authorization: `Bearer ${refreshToken}` },
       },
       {
+        headers: { Authorization: refreshToken },
+      },
+      {
         headers: { "Content-Type": "application/json" },
         body: { refreshToken },
+      },
+      {
+        headers: { "Content-Type": "application/json" },
+        body: { token: refreshToken },
+      },
+      {
+        headers: { "Content-Type": "application/json" },
+        body: { refresh_token: refreshToken },
       },
       {
         headers: {
@@ -77,6 +90,7 @@ export async function refreshAccessToken(): Promise<string> {
     ];
 
     let responseData: RefreshResponse | null = null;
+    let responseHeaders: Record<string, string | undefined> = {};
     let status = 0;
     for (const attempt of attempts) {
       const res = await axios.post<RefreshResponse>(refreshUrl, attempt.body, {
@@ -86,10 +100,9 @@ export async function refreshAccessToken(): Promise<string> {
       status = res.status;
       if (res.status >= 200 && res.status < 300) {
         responseData = res.data;
+        responseHeaders = res.headers as Record<string, string | undefined>;
         break;
       }
-      // refresh token 자체가 만료/무효면 추가 포맷 시도 없이 종료
-      if (res.status === 401) break;
     }
 
     if (!responseData) {
@@ -102,9 +115,21 @@ export async function refreshAccessToken(): Promise<string> {
     }
 
     const nextAccessToken = normalizeToken(
-      responseData.accessToken ?? responseData.token ?? null,
+      responseData.accessToken ??
+        responseData.access_token ??
+        responseData.token ??
+        responseHeaders.authorization ??
+        responseHeaders["access-token"] ??
+        responseHeaders["x-access-token"] ??
+        null,
     );
-    const nextRefreshToken = normalizeToken(responseData.refreshToken ?? refreshToken);
+    const nextRefreshToken = normalizeToken(
+      responseData.refreshToken ??
+        responseData.refresh_token ??
+        responseHeaders["refresh-token"] ??
+        responseHeaders["x-refresh-token"] ??
+        refreshToken,
+    );
 
     if (!nextAccessToken || !nextRefreshToken) {
       useAuthStore.getState().logout();
